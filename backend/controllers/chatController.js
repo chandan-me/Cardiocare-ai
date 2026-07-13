@@ -10,6 +10,46 @@ if (process.env.GEMINI_API_KEY) {
   }
 }
 
+// Highly descriptive mock clinical responses based on questions
+const getHeuristicReply = (message, errorMsg = '') => {
+  const lowerMsg = message.toLowerCase();
+  let reply = "I am your **Cardiocare AI Clinical Assistant**. ";
+  if (errorMsg) {
+    reply += `*Note: Running in local heuristic fallback mode due to a Gemini connection warning (${errorMsg}).*\n\n`;
+  } else {
+    reply += "Currently, the Gemini API key is not configured, so I am running in local screening simulation mode.\n\n";
+  }
+
+  if (lowerMsg.includes('ecg') || lowerMsg.includes('electrocardiogram') || lowerMsg.includes('lvh')) {
+    reply += "For resting ECG anomalies:\n" +
+             "- **ST-T Wave Abnormalities**: Often suggest myocardial ischemia, electrolyte imbalances, or early repolarization. Compare with previous recordings.\n" +
+             "- **Left Ventricular Hypertrophy (LVH)**: Strongly associated with chronic hypertension, valvular disease, or aortic stenosis.\n\n" +
+             "**Recommendation**: Order a 12-lead diagnostic electrocardiogram to confirm and compare with patient baseline logs.";
+  } else if (lowerMsg.includes('cholesterol') || lowerMsg.includes('ldl') || lowerMsg.includes('statins') || lowerMsg.includes('statin')) {
+    reply += "Based on **2018 AHA/ACC guidelines on cholesterol management**:\n" +
+             "- **Age 40-75 with Diabetes**: Initiate moderate-intensity statins immediately regardless of 10-year risk.\n" +
+             "- **Age 40-75 without Diabetes**: Calculate the 10-year ASCVD risk score. If risk is >= 7.5% and LDL-C is 70-189 mg/dL, initiate moderate-intensity statin therapy.\n" +
+             "- **Desirable Levels**: Total Cholesterol < 200 mg/dL, LDL-C < 100 mg/dL (or < 70 mg/dL for high-risk cohorts).";
+  } else if (lowerMsg.includes('bp') || lowerMsg.includes('hypertension') || lowerMsg.includes('blood pressure') || lowerMsg.includes('thresholds') || lowerMsg.includes('2517') || lowerMsg.includes('2017') || lowerMsg.includes('aha')) {
+    reply += "According to the **2017 ACC/AHA Hypertension Guidelines**:\n" +
+             "- **Normal**: < 120/80 mmHg\n" +
+             "- **Elevated**: 120-129 / < 80 mmHg\n" +
+             "- **Stage 1 Hypertension**: 130-139 / 80-89 mmHg (Treat with lifestyle changes unless 10-year ASCVD risk is >= 10%)\n" +
+             "- **Stage 2 Hypertension**: >= 140/90 mmHg (Lifestyle changes + antihypertensive pharmacotherapy with two first-line classes is standard)";
+  } else if (lowerMsg.includes('heart rate') || lowerMsg.includes('zone') || lowerMsg.includes('60-year-old') || lowerMsg.includes('age') || lowerMsg.includes('rate')) {
+    reply += "For a **60-year-old patient**:\n" +
+             "- **Max Target Heart Rate**: ~160 bpm (calculated as 220 - age)\n" +
+             "- **Moderate Intensity Zone (50-70% of max)**: 80 - 112 bpm\n" +
+             "- **Vigorous Intensity Zone (70-85% of max)**: 112 - 136 bpm\n\n" +
+             "**Clinical Note**: Always check resting pulse values. Resting bradycardia (< 60 bpm) or resting tachycardia (> 100 bpm) warrants further electrophysiological review.";
+  } else {
+    reply += "How can I assist you with clinical guidelines, physiological parameters, or ECG interpretations today? Feel free to ask about blood pressure stages, cholesterol desirable ranges, or target heart rate zones.";
+  }
+
+  reply += "\n\n*Disclaimer: Cardiocare AI is a clinical support assistant tool. All diagnostics must be validated by a licensed physician before starting therapy.*";
+  return reply;
+};
+
 exports.handleChat = async (req, res) => {
   const { messages } = req.body;
 
@@ -19,31 +59,15 @@ exports.handleChat = async (req, res) => {
 
   const latestMessage = messages[messages.length - 1].content;
 
-  // Fallback if Gemini is not configured
   if (!genAI) {
     console.log('Gemini API key is not set. Generating mock cardiology assistant response.');
-    
-    // Simple intelligent mock replies based on keywords
-    const lowerMsg = latestMessage.toLowerCase();
-    let reply = "I am your Cardiocare AI Clinical Assistant. Currently, the live Google Gemini API key is not configured in the backend environment variables, so I am running in local screening simulation mode.\n\n";
-
-    if (lowerMsg.includes('ecg') || lowerMsg.includes('electrocardiogram')) {
-      reply += "For resting ECG anomalies: ST-T wave abnormalities often suggest myocardial ischemia or electrolyte imbalances. Left Ventricular Hypertrophy (LVH) usually relates to chronic high blood pressure. Standard clinical recommendation includes ordering a 12-lead diagnostic ECG and comparing with prior baselines.";
-    } else if (lowerMsg.includes('cholesterol') || lowerMsg.includes('ldl') || lowerMsg.includes('statins')) {
-      reply += "Based on AHA guidelines, adults age 40-75 with LDL-C >= 70 mg/dL and 10-year risk >= 7.5% should be initiated on moderate-intensity statin therapy. Lifestyle improvements (increasing soluble fiber, lowering saturated fats) are recommended for all patients.";
-    } else if (lowerMsg.includes('bp') || lowerMsg.includes('hypertension') || lowerMsg.includes('blood pressure')) {
-      reply += "Stage 1 Hypertension (systolic 130-139 or diastolic 80-89 mmHg) is treated initially with lifestyle adjustments, unless the patient has a high 10-year ASCVD risk (>=10%), in which case a single antihypertensive agent is recommended.";
-    } else {
-      reply += "How can I assist you with clinical guidelines, physiological parameters, or ECG interpretations today? Feel free to ask about blood pressure stages, cholesterol desirable ranges, or target heart rate zones.";
-    }
-
+    const reply = getHeuristicReply(latestMessage);
     return res.json({ reply });
   }
 
   try {
     const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
 
-    // Construct a rich system prompt context for Gemini
     const systemPrompt = `You are a helpful, expert clinical cardiology assistant integrated into Cardiocare AI. 
 You assist cardiologists, nurses, and clinicians with interpretations of vital signs, diagnostic reference ranges, AHA/ESC guidelines, cardiovascular health queries, and diagnostic advice.
 Provide professional, evidence-based, and clear answers. Avoid long essays; format your answers with bold highlights and bullet points for quick reading in a fast clinical setting. 
@@ -60,8 +84,9 @@ New Question: ${latestMessage}`;
 
     res.json({ reply: replyText });
   } catch (err) {
-    console.error('Gemini chat error:', err.message);
-    res.status(500).json({ error: 'Failed to process AI assistant message.' });
+    console.error('Gemini chat error, falling back to heuristics:', err.message);
+    const reply = getHeuristicReply(latestMessage, err.message);
+    res.json({ reply });
   }
 };
 
@@ -72,16 +97,14 @@ exports.extractNotes = async (req, res) => {
     return res.status(400).json({ error: 'Clinical notes are required.' });
   }
 
-  if (!genAI) {
-    console.log('Gemini API key is not set for notes extraction. Running heuristic parser.');
-    
+  const getFallbackNotesExt = () => {
     const nameMatch = notes.match(/(?:patient|name|mr\.|ms\.)\s*([a-zA-Z\s]+)(?:is|presents|,)/i);
     const ageMatch = notes.match(/(\d+)\s*(?:years|yr|y\.o\.)/i);
     const bpMatch = notes.match(/(?:bp|blood pressure|pressure)\s*(?:is|of)?\s*(\d{2,3})/i);
     const cholMatch = notes.match(/(?:cholesterol|chol)\s*(?:is|of)?\s*(\d{2,3})/i);
     const hrMatch = notes.match(/(?:heart rate|hr|pulse|thalach)\s*(?:is|of)?\s*(\d{2,3})/i);
 
-    const extracted = {
+    return {
       patient_name: nameMatch ? nameMatch[1].trim() : 'Unknown Patient',
       age: ageMatch ? parseInt(ageMatch[1]) : 52,
       sex: notes.toLowerCase().includes('female') || notes.toLowerCase().includes('woman') || notes.toLowerCase().includes('she') ? 0 : 1,
@@ -97,7 +120,11 @@ exports.extractNotes = async (req, res) => {
       ca: 0,
       thal: 2
     };
+  };
 
+  if (!genAI) {
+    console.log('Gemini API key is not set for notes extraction. Running heuristic parser.');
+    const extracted = getFallbackNotesExt();
     return res.json({ extracted, isFallback: true });
   }
 
@@ -135,8 +162,9 @@ exports.extractNotes = async (req, res) => {
     const extracted = JSON.parse(text);
     res.json({ extracted });
   } catch (err) {
-    console.error('Error extracting patient notes:', err.message);
-    res.status(500).json({ error: 'Failed to parse patient notes using AI.' });
+    console.error('Error extracting patient notes, falling back to heuristics:', err.message);
+    const extracted = getFallbackNotesExt();
+    res.json({ extracted, isFallback: true, warning: err.message });
   }
 };
 
@@ -147,9 +175,8 @@ exports.extractOCR = async (req, res) => {
     return res.status(400).json({ error: 'Image data and mimeType are required.' });
   }
 
-  if (!genAI) {
-    console.log('Gemini API key is not set for OCR extraction. Returning mock parsed dataset.');
-    const extracted = {
+  const getFallbackOCRExt = () => {
+    return {
       patient_name: 'David Miller',
       age: 58,
       sex: 1,
@@ -165,6 +192,11 @@ exports.extractOCR = async (req, res) => {
       ca: 1,
       thal: 3
     };
+  };
+
+  if (!genAI) {
+    console.log('Gemini API key is not set for OCR extraction. Returning mock parsed dataset.');
+    const extracted = getFallbackOCRExt();
     return res.json({ extracted, isFallback: true });
   }
 
@@ -209,7 +241,8 @@ exports.extractOCR = async (req, res) => {
     const extracted = JSON.parse(text);
     res.json({ extracted });
   } catch (err) {
-    console.error('OCR Extraction error:', err.message);
-    res.status(550).json({ error: 'Failed to extract variables from clinical scan.' });
+    console.error('OCR Extraction error, falling back to heuristics:', err.message);
+    const extracted = getFallbackOCRExt();
+    res.json({ extracted, isFallback: true, warning: err.message });
   }
 };
