@@ -5,7 +5,7 @@ exports.getDashboardStats = async (req, res) => {
   const role = req.user.role;
 
   try {
-    let sql = 'SELECT id, patient_name, age, result, created_at FROM predictions';
+    let sql = 'SELECT id, patient_name, age, result, trestbps, chol, created_at FROM predictions';
     let params = [];
 
     // If not admin, restrict stats to their own patients
@@ -113,7 +113,13 @@ exports.getDashboardStats = async (req, res) => {
           healthy: monthlyChartData.map(m => m.healthy),
           highRisk: monthlyChartData.map(m => m.highRisk),
           total: monthlyChartData.map(m => m.total)
-        }
+        },
+        scatter: records.map(r => ({
+          x: r.trestbps,
+          y: r.chol,
+          result: r.result,
+          name: r.patient_name
+        }))
       }
     });
 

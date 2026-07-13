@@ -24,7 +24,7 @@ import {
   Tooltip,
   Legend
 } from 'chart.js';
-import { Pie, Bar, Line } from 'react-chartjs-2';
+import { Pie, Bar, Line, Scatter } from 'react-chartjs-2';
 
 // Register ChartJS modules
 ChartJS.register(
@@ -63,15 +63,12 @@ const DashboardOverview = () => {
   if (loading) {
     return (
       <div className="space-y-6">
-        {/* Skeleton Header */}
         <div className="h-8 bg-slate-200 dark:bg-slate-800 rounded w-1/4 animate-pulse"></div>
-        {/* Skeleton Cards */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
           {[1, 2, 3, 4].map(n => (
             <div key={n} className="h-32 bg-slate-200 dark:bg-slate-800 rounded-2xl animate-pulse"></div>
           ))}
         </div>
-        {/* Skeleton Charts */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           <div className="h-80 bg-slate-200 dark:bg-slate-800 rounded-2xl lg:col-span-1 animate-pulse"></div>
           <div className="h-80 bg-slate-200 dark:bg-slate-800 rounded-2xl lg:col-span-2 animate-pulse"></div>
@@ -162,6 +159,74 @@ const DashboardOverview = () => {
     ]
   };
 
+  // BP vs Cholesterol Scatter Dataset
+  const scatterData = {
+    datasets: [
+      {
+        label: 'Healthy Group',
+        data: (charts.scatter || []).filter(p => p.result !== 'High Risk').map(p => ({ x: p.x, y: p.y })),
+        backgroundColor: 'rgba(16, 185, 129, 0.85)',
+        pointRadius: 6,
+        pointHoverRadius: 8
+      },
+      {
+        label: 'High Risk Group',
+        data: (charts.scatter || []).filter(p => p.result === 'High Risk').map(p => ({ x: p.x, y: p.y })),
+        backgroundColor: 'rgba(239, 68, 68, 0.85)',
+        pointRadius: 6,
+        pointHoverRadius: 8
+      }
+    ]
+  };
+
+  const scatterOptions = {
+    responsive: true,
+    maintainAspectRatio: false,
+    plugins: {
+      legend: {
+        labels: {
+          color: darkMode ? '#cbd5e1' : '#334155',
+          font: { family: 'Inter', weight: '500' }
+        }
+      },
+      tooltip: {
+        callbacks: {
+          label: (context) => {
+            const index = context.dataIndex;
+            const datasetIndex = context.datasetIndex;
+            const points = (charts.scatter || []).filter(p => 
+              datasetIndex === 0 ? p.result !== 'High Risk' : p.result === 'High Risk'
+            );
+            const pt = points[index];
+            return `${pt ? pt.name : 'Patient'}: BP ${context.parsed.x} mmHg, Cholesterol ${context.parsed.y} mg/dl`;
+          }
+        }
+      }
+    },
+    scales: {
+      x: {
+        title: {
+          display: true,
+          text: 'Resting Blood Pressure (mmHg)',
+          color: darkMode ? '#cbd5e1' : '#475569',
+          font: { family: 'Inter', size: 10, weight: '600' }
+        },
+        grid: { color: darkMode ? 'rgba(255, 255, 255, 0.05)' : 'rgba(0, 0, 0, 0.05)' },
+        ticks: { color: darkMode ? '#94a3b8' : '#64748b' }
+      },
+      y: {
+        title: {
+          display: true,
+          text: 'Serum Cholesterol (mg/dl)',
+          color: darkMode ? '#cbd5e1' : '#475569',
+          font: { family: 'Inter', size: 10, weight: '600' }
+        },
+        grid: { color: darkMode ? 'rgba(255, 255, 255, 0.05)' : 'rgba(0, 0, 0, 0.05)' },
+        ticks: { color: darkMode ? '#94a3b8' : '#64748b' }
+      }
+    }
+  };
+
   return (
     <div className="space-y-6">
       
@@ -246,7 +311,7 @@ const DashboardOverview = () => {
 
       </div>
 
-      {/* Charts Panels */}
+      {/* Charts Panels Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         
         {/* Pie Chart Panel */}
@@ -292,18 +357,37 @@ const DashboardOverview = () => {
 
       </div>
 
-      {/* Monthly Timeline Chart */}
-      <div className="glass-card rounded-2xl p-6 shadow-md border border-slate-100 dark:border-slate-800">
-        <h3 className="font-display font-bold text-md text-slate-800 dark:text-slate-200 mb-4">Prediction Frequency Timeline</h3>
-        <div className="h-80 relative">
-          {totalPredictions > 0 ? (
-            <Line data={lineData} options={chartThemeOptions} />
-          ) : (
-            <div className="w-full h-full flex items-center justify-center text-slate-400 text-xs">
-              Waiting for prediction timelines...
-            </div>
-          )}
+      {/* Timeline & Scatter Grid */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        
+        {/* Monthly Timeline Chart */}
+        <div className="glass-card rounded-2xl p-6 shadow-md border border-slate-100 dark:border-slate-800">
+          <h3 className="font-display font-bold text-md text-slate-800 dark:text-slate-200 mb-4">Prediction Frequency Timeline</h3>
+          <div className="h-80 relative">
+            {totalPredictions > 0 ? (
+              <Line data={lineData} options={chartThemeOptions} />
+            ) : (
+              <div className="w-full h-full flex items-center justify-center text-slate-400 text-xs">
+                Waiting for prediction timelines...
+              </div>
+            )}
+          </div>
         </div>
+
+        {/* BP vs Cholesterol Scatter Chart */}
+        <div className="glass-card rounded-2xl p-6 shadow-md border border-slate-100 dark:border-slate-800">
+          <h3 className="font-display font-bold text-md text-slate-800 dark:text-slate-200 mb-4">BP vs. Cholesterol Correlation</h3>
+          <div className="h-80 relative">
+            {totalPredictions > 0 ? (
+              <Scatter data={scatterData} options={scatterOptions} />
+            ) : (
+              <div className="w-full h-full flex items-center justify-center text-slate-400 text-xs">
+                Waiting for correlation metrics...
+              </div>
+            )}
+          </div>
+        </div>
+
       </div>
 
     </div>

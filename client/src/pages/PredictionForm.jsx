@@ -17,7 +17,10 @@ const PredictionForm = () => {
   const [loading, setLoading] = useState(false);
   const [activeTab, setActiveTab] = useState('demographics');
 
-  const { register, handleSubmit, formState: { errors } } = useForm({
+  const [rawNotes, setRawNotes] = useState('');
+  const [extracting, setExtracting] = useState(false);
+
+  const { register, handleSubmit, setValue, formState: { errors } } = useForm({
     defaultValues: {
       patient_name: '',
       age: '',
@@ -35,6 +38,52 @@ const PredictionForm = () => {
       thal: '2'
     }
   });
+
+  const handleExtractWithAI = async () => {
+    if (!rawNotes.trim() || extracting) return;
+    setExtracting(true);
+
+    try {
+      const response = await api.post('/predict-extract', { notes: rawNotes });
+      const ext = response.data.extracted;
+
+      if (ext) {
+        setValue('patient_name', ext.patient_name || '');
+        setValue('age', ext.age?.toString() || '');
+        setValue('gender', ext.sex?.toString() || '1');
+        setValue('cp', ext.cp?.toString() || '0');
+        setValue('trestbps', ext.trestbps?.toString() || '');
+        setValue('chol', ext.chol?.toString() || '');
+        setValue('fbs', ext.fbs?.toString() || '0');
+        setValue('restecg', ext.restecg?.toString() || '0');
+        setValue('thalach', ext.thalach?.toString() || '');
+        setValue('exang', ext.exang?.toString() || '0');
+        setValue('oldpeak', ext.oldpeak?.toString() || '');
+        setValue('slope', ext.slope?.toString() || '1');
+        setValue('ca', ext.ca?.toString() || '0');
+        setValue('thal', ext.thal?.toString() || '2');
+
+        Swal.fire({
+          icon: 'success',
+          title: 'Extraction Completed',
+          text: 'Patient parameters have been extracted and loaded into the tabs below.',
+          timer: 2000,
+          showConfirmButton: false,
+          toast: true,
+          position: 'top-end'
+        });
+      }
+    } catch (err) {
+      console.error('Failed to extract patient notes:', err);
+      Swal.fire({
+        icon: 'error',
+        title: 'Extraction Failed',
+        text: 'Could not extract clinical parameters. Verify backend server connections.'
+      });
+    } finally {
+      setExtracting(false);
+    }
+  };
 
   const onSubmit = async (data) => {
     setLoading(true);
@@ -87,6 +136,40 @@ const PredictionForm = () => {
         <p className="text-sm text-slate-500 dark:text-slate-400">
           Complete the medical parameters below. Fields will be validated to run predictions.
         </p>
+      </div>
+
+      {/* AI Patient Notes Assistant (Optional) */}
+      <div className="glass-card rounded-2xl p-5 border border-slate-150 dark:border-slate-850 space-y-3">
+        <h3 className="text-xs font-bold text-slate-800 dark:text-slate-200 uppercase tracking-wider flex items-center gap-2">
+          <span className="flex h-2.5 w-2.5 rounded-full bg-medical-500 animate-ping shrink-0"></span>
+          ✨ AI Patient Notes Assistant (Optional)
+        </h3>
+        <p className="text-[11px] text-slate-500 dark:text-slate-400">
+          Paste unstructured patient clinical notes or intake transcripts. The AI will extract variables and auto-fill the forms instantly.
+        </p>
+        <div className="flex flex-col sm:flex-row gap-3">
+          <textarea
+            placeholder="e.g. Patient John presents with atypical angina. He is 54 years old. Resting BP is 135, serum cholesterol is 210. Maximum heart rate is 140. ECG shows left ventricular hypertrophy..."
+            value={rawNotes}
+            onChange={(e) => setRawNotes(e.target.value)}
+            className="flex-1 min-h-[70px] p-3 text-xs rounded-xl border border-slate-200 bg-white dark:border-slate-750 dark:bg-slate-900 text-slate-800 dark:text-slate-150 focus:outline-none focus:ring-1 focus:ring-medical-500 resize-y"
+          />
+          <button
+            type="button"
+            onClick={handleExtractWithAI}
+            disabled={extracting || !rawNotes.trim()}
+            className="px-4 py-3 bg-slate-800 hover:bg-slate-900 text-white dark:bg-slate-700 dark:hover:bg-slate-650 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5 shrink-0 disabled:opacity-50 cursor-pointer self-stretch sm:self-end"
+          >
+            {extracting ? (
+              <>
+                <div className="h-3 w-3 animate-spin rounded-full border-2 border-white border-t-transparent"></div>
+                Extracting...
+              </>
+            ) : (
+              'Extract Variables'
+            )}
+          </button>
+        </div>
       </div>
 
       {/* Tabs Menu */}

@@ -19,6 +19,7 @@ import Profile from './pages/Profile';
 import Settings from './pages/Settings';
 import Simulator from './pages/Simulator';
 import Toolkit from './pages/Toolkit';
+import Assistant from './pages/Assistant';
 import NotFound from './pages/NotFound';
 
 function App() {
@@ -54,6 +55,7 @@ function App() {
               {/* Tools & Simulators */}
               <Route path="simulator" element={<Simulator />} />
               <Route path="toolkit" element={<Toolkit />} />
+              <Route path="assistant" element={<Assistant />} />
             </Route>
 
             {/* Fallback 404 */}
