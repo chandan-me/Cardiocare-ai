@@ -7,6 +7,7 @@ const authMiddleware = require('../middleware/auth');
 router.use(authMiddleware);
 
 router.post('/predict', predictionController.createPrediction);
+router.post('/predict-quick', predictionController.quickPredict);
 router.get('/predictions', predictionController.getPredictions);
 router.get('/predictions/:id', predictionController.getPredictionById);
 router.delete('/predictions/:id', predictionController.deletePrediction);

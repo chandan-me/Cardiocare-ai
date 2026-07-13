@@ -17,6 +17,8 @@ import PredictionResult from './pages/PredictionResult';
 import PredictionHistory from './pages/PredictionHistory';
 import Profile from './pages/Profile';
 import Settings from './pages/Settings';
+import Simulator from './pages/Simulator';
+import Toolkit from './pages/Toolkit';
 import NotFound from './pages/NotFound';
 
 function App() {
@@ -49,6 +51,9 @@ function App() {
               {/* Profile & Settings */}
               <Route path="profile" element={<Profile />} />
               <Route path="settings" element={<Settings />} />
+              {/* Tools & Simulators */}
+              <Route path="simulator" element={<Simulator />} />
+              <Route path="toolkit" element={<Toolkit />} />
             </Route>
 
             {/* Fallback 404 */}

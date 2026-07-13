@@ -562,3 +562,59 @@ exports.generatePDFReport = async (req, res) => {
     }
   }
 };
+
+exports.quickPredict = async (req, res) => {
+  const { age, sex, cp, trestbps, chol, fbs, restecg, thalach, exang, oldpeak, slope, ca, thal } = req.body;
+
+  const payload = {
+    age: parseInt(age),
+    sex: parseInt(sex),
+    cp: parseInt(cp),
+    trestbps: parseInt(trestbps),
+    chol: parseInt(chol),
+    fbs: parseInt(fbs),
+    restecg: parseInt(restecg),
+    thalach: parseInt(thalach),
+    exang: parseInt(exang),
+    oldpeak: parseFloat(oldpeak),
+    slope: parseInt(slope),
+    ca: parseInt(ca),
+    thal: parseInt(thal)
+  };
+
+  try {
+    const mlResponse = await axios.post(FLASK_API_URL, payload);
+    const { prediction, confidence, risk_probability } = mlResponse.data;
+
+    res.json({
+      prediction,
+      confidence,
+      risk_probability
+    });
+  } catch (err) {
+    console.error('Quick predict ML service error:', err.message);
+    
+    // Fallback heuristic calculations if Python ML server is offline
+    let riskScore = 0;
+    if (payload.age > 55) riskScore += 1.0;
+    if (payload.sex === 1) riskScore += 0.5;
+    if (payload.cp > 0) riskScore += 1.5;
+    if (payload.trestbps > 140) riskScore += 1.0;
+    if (payload.chol > 240) riskScore += 1.0;
+    if (payload.thalach < 130) riskScore += 1.0;
+    if (payload.exang === 1) riskScore += 1.5;
+    if (payload.oldpeak > 1.5) riskScore += 1.5;
+    if (payload.ca > 0) riskScore += 1.5;
+    if (payload.thal > 1) riskScore += 1.0;
+
+    const isHigh = riskScore >= 5.0;
+    const computedConf = Math.min(50 + riskScore * 8, 98);
+
+    res.json({
+      prediction: isHigh ? 'High Risk' : 'Low Risk',
+      confidence: computedConf.toFixed(1),
+      risk_probability: (isHigh ? computedConf / 100 : (100 - computedConf) / 100).toFixed(4),
+      isFallback: true
+    });
+  }
+};

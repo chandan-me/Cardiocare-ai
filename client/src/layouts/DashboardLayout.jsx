@@ -14,7 +14,9 @@ import {
   FaTimes, 
   FaMoon, 
   FaSun,
-  FaShieldAlt
+  FaShieldAlt,
+  FaSlidersH,
+  FaBookMedical
 } from 'react-icons/fa';
 
 const DashboardLayout = () => {
@@ -33,6 +35,8 @@ const DashboardLayout = () => {
     { name: 'Dashboard', path: '/dashboard', icon: FaThLarge },
     { name: 'New Prediction', path: '/dashboard/predict', icon: FaPlusCircle },
     { name: 'Prediction History', path: '/dashboard/history', icon: FaHistory },
+    { name: 'Cardiology Simulator', path: '/dashboard/simulator', icon: FaSlidersH },
+    { name: 'Reference Toolkit', path: '/dashboard/toolkit', icon: FaBookMedical },
     { name: 'Profile', path: '/dashboard/profile', icon: FaUser },
     { name: 'Settings', path: '/dashboard/settings', icon: FaCog },
   ];
