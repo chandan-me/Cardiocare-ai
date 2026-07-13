@@ -1,0 +1,32 @@
+# Python Virtual Environments & Caches
+python-api/venv/
+**/__pycache__/
+*.pyc
+.ipynb_checkpoints
+
+# Node Modules and Build Folders
+node_modules/
+**/node_modules/
+dist/
+build/
+.eslintcache
+
+# Sensitive Environment Variables (Secrets)
+.env
+.env.local
+.env.production
+backend/.env
+client/.env
+client/.env.local
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# IDE/OS files
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
