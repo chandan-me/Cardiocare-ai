@@ -7,7 +7,9 @@ import {
   FaCalculator, 
   FaHeart,
   FaWeight,
-  FaRegHeart
+  FaRegHeart,
+  FaFileDownload,
+  FaVials
 } from 'react-icons/fa';
 
 const Toolkit = () => {
@@ -29,9 +31,22 @@ const Toolkit = () => {
   const [smoker, setSmoker] = useState(false);
   const [diabetic, setDiabetic] = useState(false);
 
+  // Framingham 10-Year CVD State
+  const [fage, setFage] = useState(45);
+  const [fsex, setFsex] = useState('male');
+  const [fchol, setFchol] = useState(210);
+  const [fhdl, setFhdl] = useState(45);
+  const [fsbp, setFsbp] = useState(130);
+  const [ftreated, setFtreated] = useState(false);
+  const [fsmoker, setFsmoker] = useState(false);
+  const [fdiabetic, setFdiabetic] = useState(false);
+
   // ECG Simulator State
   const [ecgBpm, setEcgBpm] = useState(75);
-  const [rhythmType, setRhythmType] = useState('normal'); // 'normal', 'st_elevation', 'lvh'
+  const [rhythmType, setRhythmType] = useState('normal'); 
+  const [prInterval, setPrInterval] = useState(0.15); // fraction of cycle
+  const [qrsDuration, setQrsDuration] = useState(0.05); // fraction of cycle
+  const [qtInterval, setQtInterval] = useState(0.35); // fraction of cycle
   
   const canvasRef = useRef(null);
   const animationRef = useRef(null);
@@ -53,28 +68,20 @@ const Toolkit = () => {
     return { label: 'Obese', color: 'text-rose-500' };
   };
 
-  // Heart Age Calculator (Heuristic vascular aging based on Framingham risk weights)
+  // Heart Age Calculator (Heuristic vascular aging)
   const calculateHeartAge = () => {
     let baseAge = actualAge;
-    
-    // BP contribution
     if (systolicBp >= 140) baseAge += 6;
     else if (systolicBp >= 130) baseAge += 3;
     else if (systolicBp < 120) baseAge -= 1;
 
-    // Cholesterol contribution
     if (cholValue >= 240) baseAge += 5;
     else if (cholValue >= 200) baseAge += 2;
     else if (cholValue < 160) baseAge -= 1;
 
-    // Lifestyle switches
     if (smoker) baseAge += 4;
     if (diabetic) baseAge += 5;
-
-    // Gender adjustments
-    if (sex === 'female') {
-      baseAge -= 1; // standard demographic offset
-    }
+    if (sex === 'female') baseAge -= 1;
 
     return Math.max(actualAge - 5, Math.round(baseAge));
   };
@@ -82,7 +89,105 @@ const Toolkit = () => {
   const heartAge = calculateHeartAge();
   const heartAgeDiff = heartAge - actualAge;
 
-  // ECG Rhythm Generator drawing onto HTML5 canvas
+  // Framingham 10-Year Cardiovascular Disease Risk Score calculation
+  const calculateFramingham = () => {
+    let pts = 0;
+    
+    // 1. Age points
+    if (fsex === 'male') {
+      if (fage >= 30 && fage <= 34) pts += 0;
+      else if (fage >= 35 && fage <= 39) pts += 2;
+      else if (fage >= 40 && fage <= 44) pts += 5;
+      else if (fage >= 45 && fage <= 49) pts += 7;
+      else if (fage >= 50 && fage <= 54) pts += 8;
+      else if (fage >= 55 && fage <= 59) pts += 10;
+      else if (fage >= 60 && fage <= 64) pts += 11;
+      else if (fage >= 65 && fage <= 69) pts += 12;
+      else if (fage >= 70 && fage <= 74) pts += 14;
+      else pts += 15;
+    } else {
+      if (fage >= 30 && fage <= 34) pts += 0;
+      else if (fage >= 35 && fage <= 39) pts += 2;
+      else if (fage >= 40 && fage <= 44) pts += 4;
+      else if (fage >= 45 && fage <= 49) pts += 5;
+      else if (fage >= 50 && fage <= 54) pts += 7;
+      else if (fage >= 55 && fage <= 59) pts += 8;
+      else if (fage >= 60 && fage <= 64) pts += 9;
+      else if (fage >= 65 && fage <= 69) pts += 10;
+      else if (fage >= 70 && fage <= 74) pts += 12;
+      else pts += 13;
+    }
+
+    // 2. Cholesterol points
+    if (fchol >= 280) pts += 4;
+    else if (fchol >= 240) pts += 3;
+    else if (fchol >= 200) pts += 2;
+    else if (fchol >= 160) pts += 1;
+
+    // 3. HDL points
+    if (fhdl < 35) pts += 2;
+    else if (fhdl >= 35 && fhdl <= 44) pts += 1;
+    else if (fhdl >= 45 && fhdl <= 59) pts += 0;
+    else pts -= 1;
+
+    // 4. Systolic BP points
+    if (ftreated) {
+      if (fsbp >= 160) pts += 3;
+      else if (fsbp >= 140) pts += 2;
+      else if (fsbp >= 130) pts += 2;
+      else if (fsbp >= 120) pts += 1;
+    } else {
+      if (fsbp >= 160) pts += 2;
+      else if (fsbp >= 140) pts += 1;
+      else if (fsbp >= 130) pts += 1;
+      else if (fsbp >= 120) pts += 0;
+    }
+
+    // 5. Smoker
+    if (fsmoker) pts += (fage < 50 ? 4 : fage < 70 ? 2 : 1);
+
+    // 6. Diabetes
+    if (fdiabetic) pts += (fsex === 'male' ? 3 : 4);
+
+    // Map points to risk percentage
+    let risk = 0;
+    if (fsex === 'male') {
+      if (pts <= 0) risk = 1;
+      else if (pts <= 4) risk = 2;
+      else if (pts <= 6) risk = 3;
+      else if (pts <= 8) risk = 5;
+      else if (pts === 9) risk = 6;
+      else if (pts === 10) risk = 8;
+      else if (pts === 11) risk = 10;
+      else if (pts === 12) risk = 12;
+      else if (pts === 13) risk = 15;
+      else if (pts === 14) risk = 18;
+      else if (pts === 15) risk = 22;
+      else if (pts === 16) risk = 27;
+      else risk = 30; 
+    } else {
+      if (pts <= 0) risk = 1;
+      else if (pts <= 4) risk = 2;
+      else if (pts <= 6) risk = 3;
+      else if (pts <= 8) risk = 4;
+      else if (pts === 9) risk = 5;
+      else if (pts === 10) risk = 6;
+      else if (pts === 11) risk = 8;
+      else if (pts === 12) risk = 10;
+      else if (pts === 13) risk = 12;
+      else if (pts === 14) risk = 15;
+      else if (pts === 15) risk = 18;
+      else if (pts === 16) risk = 22;
+      else if (pts === 17) risk = 27;
+      else risk = 30; 
+    }
+
+    return { points: pts, risk };
+  };
+
+  const { points: fPoints, risk: fRisk } = calculateFramingham();
+
+  // ECG Rhythm Generator drawing onto HTML5 canvas with custom wave intervals
   useEffect(() => {
     if (activeTab !== 'ecg') return;
 
@@ -92,16 +197,12 @@ const Toolkit = () => {
     
     let width = canvas.width;
     let height = canvas.height;
-    let xTrace = 0;
     
-    // Grid parameters
     const gridSize = 15;
-    
-    // Animation trace arrays
     const tracePoints = new Array(width).fill(height / 2);
 
     const drawGrid = () => {
-      ctx.strokeStyle = 'rgba(239, 68, 68, 0.08)'; // clinical pink gridlines
+      ctx.strokeStyle = 'rgba(239, 68, 68, 0.08)'; 
       ctx.lineWidth = 0.5;
       for (let x = 0; x < width; x += gridSize) {
         ctx.beginPath();
@@ -117,15 +218,11 @@ const Toolkit = () => {
       }
     };
 
-    // Synthesize P-QRS-T complexes based on active heart rhythm selections
     const generateECGValue = (t) => {
-      // Calculate beat cycle width based on Bpm
-      const cycleLength = (60 / ecgBpm) * 60; // frame cycles per beat (assumed 60fps)
+      const cycleLength = (60 / ecgBpm) * 60; 
       const phase = t % cycleLength;
-      
       const baseline = height / 2;
 
-      // Peak parameters based on active rhythm type selections
       let qVal = -8;
       let rVal = 65; 
       let sVal = -20;
@@ -133,56 +230,67 @@ const Toolkit = () => {
       let stElev = 0; 
 
       if (rhythmType === 'st_elevation') {
-        stElev = 18; // elevated ST segment line
+        stElev = 18; 
         tOffset = 8;
       } else if (rhythmType === 'lvh') {
-        rVal = 85;   // massive R wave amplitude
-        sVal = -45;  // deep reciprocal S waves
+        rVal = 85;   
+        sVal = -45;  
       }
 
-      // 1. Isoelectric baseline
-      if (phase < cycleLength * 0.1) return baseline;
+      // Dynamic phases based on sliders
+      const pStart = cycleLength * 0.05;
+      const pEnd = cycleLength * 0.15;
+      const prEnd = cycleLength * (0.15 + (prInterval - 0.15)); 
+      
+      const qStart = prEnd;
+      const qEnd = qStart + cycleLength * (qrsDuration * 0.2);
+      const rEnd = qEnd + cycleLength * (qrsDuration * 0.3);
+      const sEnd = rEnd + cycleLength * (qrsDuration * 0.5);
+      
+      const stEnd = sEnd + cycleLength * 0.08;
+      const tEnd = stEnd + cycleLength * (qtInterval * 0.7);
 
-      // 2. P-wave
-      if (phase >= cycleLength * 0.1 && phase < cycleLength * 0.2) {
-        const pPhase = (phase - cycleLength * 0.1) / (cycleLength * 0.1);
+      if (phase < pStart) return baseline;
+
+      // P-wave
+      if (phase >= pStart && phase < pEnd) {
+        const pPhase = (phase - pStart) / (pEnd - pStart);
         return baseline - Math.sin(pPhase * Math.PI) * 6;
       }
 
-      // 3. PR Interval segment
-      if (phase >= cycleLength * 0.2 && phase < cycleLength * 0.3) return baseline;
+      // PR segment
+      if (phase >= pEnd && phase < qStart) return baseline;
 
-      // 4. Q-wave
-      if (phase >= cycleLength * 0.3 && phase < cycleLength * 0.33) {
-        const qPhase = (phase - cycleLength * 0.3) / (cycleLength * 0.03);
+      // Q-wave
+      if (phase >= qStart && phase < qEnd) {
+        const qPhase = (phase - qStart) / (qEnd - qStart);
         return baseline - (qPhase * qVal);
       }
 
-      // 5. R-wave peak
-      if (phase >= cycleLength * 0.33 && phase < cycleLength * 0.37) {
-        const rPhase = (phase - cycleLength * 0.33) / (cycleLength * 0.04);
+      // R-wave
+      if (phase >= qEnd && phase < rEnd) {
+        const rPhase = (phase - qEnd) / (rEnd - qEnd);
         return baseline - qVal - (rPhase * (rVal - qVal));
       }
 
-      // 6. S-wave drop
-      if (phase >= cycleLength * 0.37 && phase < cycleLength * 0.42) {
-        const sPhase = (phase - cycleLength * 0.37) / (cycleLength * 0.05);
+      // S-wave
+      if (phase >= rEnd && phase < sEnd) {
+        const sPhase = (phase - rEnd) / (sEnd - rEnd);
         return baseline - rVal + (sPhase * (rVal - sVal));
       }
 
-      // 7. ST segment interval
-      if (phase >= cycleLength * 0.42 && phase < cycleLength * 0.52) {
-        const stPhase = (phase - cycleLength * 0.42) / (cycleLength * 0.1);
+      // ST segment
+      if (phase >= sEnd && phase < stEnd) {
+        const stPhase = (phase - sEnd) / (stEnd - sEnd);
         return baseline - sVal - (stPhase * (sVal + stElev));
       }
 
-      // 8. T-wave recovery
-      if (phase >= cycleLength * 0.52 && phase < cycleLength * 0.65) {
-        const tPhase = (phase - cycleLength * 0.52) / (cycleLength * 0.13);
+      // T-wave
+      if (phase >= stEnd && phase < tEnd) {
+        const tPhase = (phase - stEnd) / (tEnd - stEnd);
         return baseline - stElev - Math.sin(tPhase * Math.PI) * (14 + tOffset);
       }
 
-      // 9. Isoelectric baseline return
       return baseline;
     };
 
@@ -193,13 +301,11 @@ const Toolkit = () => {
 
       drawGrid();
 
-      // Shift traces
       const val = generateECGValue(time);
       tracePoints.push(val);
       tracePoints.shift();
 
-      // Render traces lines
-      ctx.strokeStyle = '#ef4444'; // glowing medical red line
+      ctx.strokeStyle = '#ef4444'; 
       ctx.lineWidth = 2.2;
       ctx.shadowBlur = 4;
       ctx.shadowColor = 'rgba(239, 68, 68, 0.4)';
@@ -210,7 +316,7 @@ const Toolkit = () => {
         ctx.lineTo(i, tracePoints[i]);
       }
       ctx.stroke();
-      ctx.shadowBlur = 0; // reset shadow
+      ctx.shadowBlur = 0; 
 
       time++;
       animationRef.current = requestAnimationFrame(animate);
@@ -221,7 +327,7 @@ const Toolkit = () => {
     return () => {
       cancelAnimationFrame(animationRef.current);
     };
-  }, [activeTab, ecgBpm, rhythmType]);
+  }, [activeTab, ecgBpm, rhythmType, prInterval, qrsDuration, qtInterval]);
 
   return (
     <div className="max-w-4xl mx-auto space-y-6">
@@ -241,25 +347,25 @@ const Toolkit = () => {
       <div className="flex border-b border-slate-200 dark:border-slate-800 text-[11px] font-bold">
         <button
           onClick={() => setActiveTab('ranges')}
-          className={`pb-3 px-4 transition-all border-b-2 cursor-pointer ${activeTab === 'ranges' ? 'border-medical-500 text-medical-600 dark:text-medical-400' : 'border-transparent text-slate-450 hover:text-slate-650'}`}
+          className={`pb-3 px-4 transition-all border-b-2 cursor-pointer ${activeTab === 'ranges' ? 'border-medical-500 text-medical-600 dark:text-medical-400' : 'border-transparent text-slate-450 hover:text-slate-655'}`}
         >
           Reference Vitals Ranges
         </button>
         <button
           onClick={() => setActiveTab('guidelines')}
-          className={`pb-3 px-4 transition-all border-b-2 cursor-pointer ${activeTab === 'guidelines' ? 'border-medical-500 text-medical-600 dark:text-medical-400' : 'border-transparent text-slate-450 hover:text-slate-650'}`}
+          className={`pb-3 px-4 transition-all border-b-2 cursor-pointer ${activeTab === 'guidelines' ? 'border-medical-500 text-medical-600 dark:text-medical-400' : 'border-transparent text-slate-450 hover:text-slate-655'}`}
         >
           Clinical Guidelines
         </button>
         <button
           onClick={() => setActiveTab('calculators')}
-          className={`pb-3 px-4 transition-all border-b-2 cursor-pointer ${activeTab === 'calculators' ? 'border-medical-500 text-medical-600 dark:text-medical-400' : 'border-transparent text-slate-450 hover:text-slate-650'}`}
+          className={`pb-3 px-4 transition-all border-b-2 cursor-pointer ${activeTab === 'calculators' ? 'border-medical-500 text-medical-600 dark:text-medical-400' : 'border-transparent text-slate-450 hover:text-slate-655'}`}
         >
           Utility Calculators
         </button>
         <button
           onClick={() => setActiveTab('ecg')}
-          className={`pb-3 px-4 transition-all border-b-2 cursor-pointer ${activeTab === 'ecg' ? 'border-medical-500 text-medical-600 dark:text-medical-400' : 'border-transparent text-slate-450 hover:text-slate-650'}`}
+          className={`pb-3 px-4 transition-all border-b-2 cursor-pointer ${activeTab === 'ecg' ? 'border-medical-500 text-medical-600 dark:text-medical-400' : 'border-transparent text-slate-450 hover:text-slate-655'}`}
         >
           ECG Rhythm Simulator
         </button>
@@ -393,7 +499,7 @@ const Toolkit = () => {
       {/* Tab 3: Utility Calculators */}
       {activeTab === 'calculators' && (
         <div className="space-y-6 animate-fade-in">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             
             {/* Target Heart Rate Calculator */}
             <div className="glass-card rounded-2xl p-5 border border-slate-150 dark:border-slate-850 space-y-4 shadow-sm flex flex-col justify-between">
@@ -503,7 +609,7 @@ const Toolkit = () => {
             <div className="glass-card rounded-2xl p-5 border border-slate-150 dark:border-slate-850 space-y-4 shadow-sm flex flex-col justify-between">
               <div>
                 <h3 className="font-display font-bold text-xs text-slate-800 dark:text-slate-100 flex items-center gap-2 mb-3">
-                  <FaHeart className="text-rose-500 animate-pulse" />
+                  <FaHeart className="text-rose-500" />
                   Vascular Heart Age
                 </h3>
 
@@ -576,12 +682,117 @@ const Toolkit = () => {
                   <span>Vascular Heart Age:</span>
                   <span className={`font-extrabold ${heartAgeDiff > 0 ? 'text-rose-500' : 'text-emerald-500'}`}>{heartAge} years</span>
                 </div>
-                <div className="flex justify-between border-t border-slate-200 dark:border-slate-800 pt-2 font-semibold text-[10px] text-slate-500">
+                <div className="flex justify-between border-t border-slate-200 dark:border-slate-800 pt-2 font-semibold text-[10px] text-slate-555">
                   <span>Relative Status:</span>
                   <span>
                     {heartAgeDiff > 0 
                       ? `⚠️ Heart is ${heartAgeDiff} years older` 
                       : `✅ Heart is ${Math.abs(heartAgeDiff)} years younger`}
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            {/* Framingham 10-Year Cardiovascular Disease Risk Score Calculator */}
+            <div className="glass-card rounded-2xl p-5 border border-slate-150 dark:border-slate-850 space-y-4 shadow-sm flex flex-col justify-between">
+              <div>
+                <h3 className="font-display font-bold text-xs text-slate-800 dark:text-slate-100 flex items-center gap-2 mb-3">
+                  <FaVials className="text-sky-505" />
+                  Framingham 10-Year CVD Risk
+                </h3>
+
+                <div className="space-y-2 text-[9px] font-semibold text-slate-700 dark:text-slate-350">
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <span className="block mb-0.5 text-slate-450 font-bold">Age: {fage} yrs</span>
+                      <input
+                        type="range"
+                        min="30"
+                        max="79"
+                        value={fage}
+                        onChange={(e) => setFage(parseInt(e.target.value))}
+                        className="w-full h-1 bg-slate-200 dark:bg-slate-850 rounded-lg accent-medical-500 cursor-pointer"
+                      />
+                    </div>
+                    <div>
+                      <span className="block mb-0.5 text-slate-450 font-bold">Systolic BP: {fsbp}</span>
+                      <input
+                        type="range"
+                        min="90"
+                        max="200"
+                        value={fsbp}
+                        onChange={(e) => setFsbp(parseInt(e.target.value))}
+                        className="w-full h-1 bg-slate-200 dark:bg-slate-850 rounded-lg accent-medical-500 cursor-pointer"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-3 gap-2">
+                    <div className="col-span-1">
+                      <span className="block mb-0.5 text-slate-450 font-bold">HDL Chol: {fhdl}</span>
+                      <input
+                        type="range"
+                        min="20"
+                        max="100"
+                        value={fhdl}
+                        onChange={(e) => setFhdl(parseInt(e.target.value))}
+                        className="w-full h-1 bg-slate-200 dark:bg-slate-850 rounded-lg accent-medical-500 cursor-pointer"
+                      />
+                    </div>
+                    <div className="col-span-1">
+                      <span className="block mb-0.5 text-slate-450 font-bold">Total Chol: {fchol}</span>
+                      <input
+                        type="range"
+                        min="100"
+                        max="400"
+                        value={fchol}
+                        onChange={(e) => setFchol(parseInt(e.target.value))}
+                        className="w-full h-1 bg-slate-200 dark:bg-slate-850 rounded-lg accent-medical-500 cursor-pointer"
+                      />
+                    </div>
+                    <div className="col-span-1">
+                      <span className="block mb-0.5 text-slate-450 font-bold">Sex</span>
+                      <select
+                        value={fsex}
+                        onChange={(e) => setFsex(e.target.value)}
+                        className="w-full p-1 rounded-lg border border-slate-200 dark:border-slate-750 dark:bg-slate-800 text-[9px]"
+                      >
+                        <option value="male">Male</option>
+                        <option value="female">Female</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  <div className="flex gap-4 pt-1 font-bold">
+                    <label className="flex items-center gap-1 cursor-pointer">
+                      <input type="checkbox" checked={ftreated} onChange={(e) => setFtreated(e.target.checked)} className="accent-medical-500" />
+                      <span>BP Treated</span>
+                    </label>
+                    <label className="flex items-center gap-1 cursor-pointer">
+                      <input type="checkbox" checked={fsmoker} onChange={(e) => setFsmoker(e.target.checked)} className="accent-medical-500" />
+                      <span>Smoker</span>
+                    </label>
+                    <label className="flex items-center gap-1 cursor-pointer">
+                      <input type="checkbox" checked={fdiabetic} onChange={(e) => setFdiabetic(e.target.checked)} className="accent-medical-500" />
+                      <span>Diabetic</span>
+                    </label>
+                  </div>
+                </div>
+              </div>
+
+              <div className="p-3.5 bg-slate-50 dark:bg-slate-850 border border-slate-100 dark:border-slate-800 rounded-xl text-[11px] space-y-2 mt-4 text-slate-705 dark:text-slate-300 font-bold">
+                <div className="flex justify-between">
+                  <span>CVD 10-Year Risk:</span>
+                  <span className={`font-extrabold ${fRisk >= 20 ? 'text-rose-500' : fRisk >= 10 ? 'text-amber-500' : 'text-emerald-500'}`}>{fRisk}%</span>
+                </div>
+                <div className="flex justify-between border-t border-slate-200 dark:border-slate-800 pt-2 font-semibold text-[10px] text-slate-555">
+                  <span>Risk Category:</span>
+                  <span>
+                    {fRisk >= 20 
+                      ? '🔴 High Risk (>20%)' 
+                      : fRisk >= 10 
+                        ? '🟡 Intermediate (10%-20%)' 
+                        : '🟢 Low Risk (<10%)'}
                   </span>
                 </div>
               </div>
@@ -610,19 +821,19 @@ const Toolkit = () => {
               <div className="flex gap-2 text-[10px] font-bold">
                 <button
                   onClick={() => setRhythmType('normal')}
-                  className={`px-3 py-1.5 rounded-lg border transition cursor-pointer ${rhythmType === 'normal' ? 'bg-slate-800 text-white border-slate-850' : 'bg-white text-slate-650 hover:bg-slate-50 dark:bg-slate-900 dark:text-slate-300'}`}
+                  className={`px-3 py-1.5 rounded-lg border transition cursor-pointer ${rhythmType === 'normal' ? 'bg-slate-800 text-white border-slate-850' : 'bg-white text-slate-655 hover:bg-slate-50 dark:bg-slate-900 dark:text-slate-300'}`}
                 >
                   Normal Sinus
                 </button>
                 <button
                   onClick={() => setRhythmType('st_elevation')}
-                  className={`px-3 py-1.5 rounded-lg border transition cursor-pointer ${rhythmType === 'st_elevation' ? 'bg-slate-800 text-white border-slate-850' : 'bg-white text-slate-650 hover:bg-slate-50 dark:bg-slate-900 dark:text-slate-300'}`}
+                  className={`px-3 py-1.5 rounded-lg border transition cursor-pointer ${rhythmType === 'st_elevation' ? 'bg-slate-800 text-white border-slate-850' : 'bg-white text-slate-655 hover:bg-slate-50 dark:bg-slate-900 dark:text-slate-300'}`}
                 >
                   ST Elevation
                 </button>
                 <button
                   onClick={() => setRhythmType('lvh')}
-                  className={`px-3 py-1.5 rounded-lg border transition cursor-pointer ${rhythmType === 'lvh' ? 'bg-slate-800 text-white border-slate-850' : 'bg-white text-slate-650 hover:bg-slate-50 dark:bg-slate-900 dark:text-slate-300'}`}
+                  className={`px-3 py-1.5 rounded-lg border transition cursor-pointer ${rhythmType === 'lvh' ? 'bg-slate-800 text-white border-slate-850' : 'bg-white text-slate-655 hover:bg-slate-50 dark:bg-slate-900 dark:text-slate-300'}`}
                 >
                   Left Ventricular Hypertrophy (LVH)
                 </button>
@@ -639,21 +850,76 @@ const Toolkit = () => {
               />
             </div>
 
-            {/* Heart Rate speed modifier */}
-            <div className="max-w-xs space-y-1">
-              <div className="flex justify-between text-xs font-bold text-slate-550">
-                <span>Simulator Heart Rate (BPM):</span>
-                <span className="text-rose-500">{ecgBpm} bpm</span>
+            {/* Rhythm Parameters Sliders Block */}
+            <div className="grid grid-cols-1 sm:grid-cols-4 gap-6 pt-3.5 border-t border-slate-100 dark:border-slate-800">
+              {/* Heart Rate */}
+              <div className="space-y-1">
+                <div className="flex justify-between text-xs font-bold text-slate-550">
+                  <span>Heart Rate:</span>
+                  <span className="text-rose-500">{ecgBpm} bpm</span>
+                </div>
+                <input
+                  type="range"
+                  min="50"
+                  max="150"
+                  value={ecgBpm}
+                  onChange={(e) => setEcgBpm(parseInt(e.target.value))}
+                  className="w-full h-1 bg-slate-200 dark:bg-slate-800 rounded-lg appearance-none cursor-pointer accent-medical-500"
+                />
               </div>
-              <input
-                type="range"
-                min="50"
-                max="150"
-                value={ecgBpm}
-                onChange={(e) => setEcgBpm(parseInt(e.target.value))}
-                className="w-full h-1 bg-slate-200 dark:bg-slate-800 rounded-lg appearance-none cursor-pointer accent-medical-500"
-              />
+
+              {/* PR Interval */}
+              <div className="space-y-1">
+                <div className="flex justify-between text-xs font-bold text-slate-550">
+                  <span>PR Interval:</span>
+                  <span className="text-sky-500">{(prInterval * 1000).toFixed(0)} ms</span>
+                </div>
+                <input
+                  type="range"
+                  min="0.10"
+                  max="0.25"
+                  step="0.01"
+                  value={prInterval}
+                  onChange={(e) => setPrInterval(parseFloat(e.target.value))}
+                  className="w-full h-1 bg-slate-200 dark:bg-slate-800 rounded-lg appearance-none cursor-pointer accent-medical-500"
+                />
+              </div>
+
+              {/* QRS Duration */}
+              <div className="space-y-1">
+                <div className="flex justify-between text-xs font-bold text-slate-550">
+                  <span>QRS Duration:</span>
+                  <span className="text-emerald-500">{(qrsDuration * 1000).toFixed(0)} ms</span>
+                </div>
+                <input
+                  type="range"
+                  min="0.02"
+                  max="0.12"
+                  step="0.01"
+                  value={qrsDuration}
+                  onChange={(e) => setQrsDuration(parseFloat(e.target.value))}
+                  className="w-full h-1 bg-slate-200 dark:bg-slate-800 rounded-lg appearance-none cursor-pointer accent-medical-500"
+                />
+              </div>
+
+              {/* QT Interval */}
+              <div className="space-y-1">
+                <div className="flex justify-between text-xs font-bold text-slate-550">
+                  <span>QT Interval:</span>
+                  <span className="text-purple-500">{(qtInterval * 1000).toFixed(0)} ms</span>
+                </div>
+                <input
+                  type="range"
+                  min="0.20"
+                  max="0.55"
+                  step="0.01"
+                  value={qtInterval}
+                  onChange={(e) => setQtInterval(parseFloat(e.target.value))}
+                  className="w-full h-1 bg-slate-200 dark:bg-slate-800 rounded-lg appearance-none cursor-pointer accent-medical-500"
+                />
+              </div>
             </div>
+
           </div>
         </div>
       )}
