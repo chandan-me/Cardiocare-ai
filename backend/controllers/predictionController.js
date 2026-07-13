@@ -204,7 +204,7 @@ exports.createPrediction = async (req, res) => {
     if (result === 'High Risk' && genAI) {
       try {
         console.log('Requesting Gemini recommendations...');
-        const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
+        const model = genAI.getGenerativeModel({ model: 'gemini-flash-latest' });
         const prompt = `You are a professional cardiologist. Provide personalized health and lifestyle guidelines for a patient who has been assessed as "High Risk" for heart disease. 
         Patient statistics:
         - Age: ${age}
