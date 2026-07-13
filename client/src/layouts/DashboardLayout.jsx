@@ -17,7 +17,8 @@ import {
   FaShieldAlt,
   FaSlidersH,
   FaBookMedical,
-  FaRobot
+  FaRobot,
+  FaUsers
 } from 'react-icons/fa';
 
 const DashboardLayout = () => {
@@ -36,6 +37,7 @@ const DashboardLayout = () => {
     { name: 'Dashboard', path: '/dashboard', icon: FaThLarge },
     { name: 'New Prediction', path: '/dashboard/predict', icon: FaPlusCircle },
     { name: 'Prediction History', path: '/dashboard/history', icon: FaHistory },
+    { name: 'Patient Directory', path: '/dashboard/patients', icon: FaUsers },
     { name: 'Cardiology Simulator', path: '/dashboard/simulator', icon: FaSlidersH },
     { name: 'Reference Toolkit', path: '/dashboard/toolkit', icon: FaBookMedical },
     { name: 'AI Assistant', path: '/dashboard/assistant', icon: FaRobot },
@@ -69,7 +71,7 @@ const DashboardLayout = () => {
             variants={textVariants}
             className="font-display font-bold text-lg tracking-wide bg-gradient-to-r from-rose-400 to-sky-400 bg-clip-text text-transparent white-space-nowrap"
           >
-            Antigravity Pulse
+            Cardiocare-ai
           </motion.span>
         </div>
 

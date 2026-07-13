@@ -56,8 +56,8 @@ const LandingPage = () => {
         <div className="flex items-center gap-3">
           <FaHeartbeat className="h-9 w-9 text-rose-500 animate-pulse-heart" />
           <span className="font-display font-extrabold text-xl tracking-tight bg-gradient-to-r from-rose-500 to-sky-600 bg-clip-text text-transparent">
-            Antigravity Pulse
-          </span>
+            Cardiocare-ai
+            </span>
         </div>
 
         <div className="flex items-center gap-4">

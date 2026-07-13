@@ -9,16 +9,22 @@ import {
   FaVials, 
   FaHeart,
   FaFileMedicalAlt,
-  FaArrowRight
+  FaArrowRight,
+  FaRegFileAlt,
+  FaUpload,
+  FaBrain
 } from 'react-icons/fa';
 
 const PredictionForm = () => {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
   const [activeTab, setActiveTab] = useState('demographics');
-
+  
+  // Intake intelligence hub
+  const [intakeMode, setIntakeMode] = useState('notes'); // 'notes' or 'ocr'
   const [rawNotes, setRawNotes] = useState('');
   const [extracting, setExtracting] = useState(false);
+  const [ocrLoading, setOcrLoading] = useState(false);
 
   const { register, handleSubmit, setValue, formState: { errors } } = useForm({
     defaultValues: {
@@ -85,8 +91,110 @@ const PredictionForm = () => {
     }
   };
 
+  const handleOCRUpload = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    if (file.size > 2 * 1024 * 1024) {
+      Swal.fire('File Too Large', 'Please select an image smaller than 2MB.', 'error');
+      return;
+    }
+
+    setOcrLoading(true);
+    const reader = new FileReader();
+    reader.onload = async (uploadEvent) => {
+      const base64Data = uploadEvent.target.result;
+      const mimeType = file.type;
+      
+      try {
+        Swal.fire({
+          title: 'Reading Lab Report Scan...',
+          text: 'Gemini Multimodal is analyzing the document image.',
+          allowOutsideClick: false,
+          didOpen: () => {
+            Swal.showLoading();
+          }
+        });
+
+        const response = await api.post('/predict-ocr', { 
+          image: base64Data, 
+          mimeType 
+        });
+
+        Swal.close();
+        const ext = response.data.extracted;
+        
+        if (ext) {
+          setValue('patient_name', ext.patient_name || '');
+          setValue('age', ext.age?.toString() || '');
+          setValue('gender', ext.sex?.toString() || '1');
+          setValue('cp', ext.cp?.toString() || '0');
+          setValue('trestbps', ext.trestbps?.toString() || '');
+          setValue('chol', ext.chol?.toString() || '');
+          setValue('fbs', ext.fbs?.toString() || '0');
+          setValue('restecg', ext.restecg?.toString() || '0');
+          setValue('thalach', ext.thalach?.toString() || '');
+          setValue('exang', ext.exang?.toString() || '0');
+          setValue('oldpeak', ext.oldpeak?.toString() || '');
+          setValue('slope', ext.slope?.toString() || '1');
+          setValue('ca', ext.ca?.toString() || '0');
+          setValue('thal', ext.thal?.toString() || '2');
+
+          Swal.fire({
+            icon: 'success',
+            title: 'OCR Scan Completed',
+            text: 'Extracted credentials and 11 cardiac parameters into the form below.',
+            timer: 2000,
+            showConfirmButton: false,
+            toast: true,
+            position: 'top-end'
+          });
+        }
+      } catch (err) {
+        Swal.close();
+        console.error('OCR Extraction error:', err);
+        Swal.fire('OCR Parsing Failed', 'Could not read parameters from the image. Ensure the text is clear.', 'error');
+      } finally {
+        setOcrLoading(false);
+      }
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleSaveOffline = (data) => {
+    const offlineList = JSON.parse(localStorage.getItem('offline_predictions') || '[]');
+    const newOffline = {
+      ...data,
+      id: `offline-${Date.now()}`,
+      created_at: new Date().toISOString(),
+      result: 'Pending (Offline)',
+      confidence: '0.0',
+      isOffline: true
+    };
+    
+    offlineList.push(newOffline);
+    localStorage.setItem('offline_predictions', JSON.stringify(offlineList));
+
+    Swal.fire({
+      icon: 'info',
+      title: 'Offline Mode Active',
+      text: 'Cardiac risk screening cached locally. It will auto-sync to the database once connection is restored.',
+      confirmButtonText: 'View History Logs'
+    }).then(() => {
+      navigate('/dashboard/history');
+    });
+  };
+
   const onSubmit = async (data) => {
     setLoading(true);
+    
+    // Check if offline
+    if (!navigator.onLine) {
+      handleSaveOffline(data);
+      setLoading(false);
+      return;
+    }
+
     try {
       Swal.fire({
         title: 'Running AI Diagnostics...',
@@ -98,21 +206,23 @@ const PredictionForm = () => {
       });
 
       const response = await api.post('/predict', data);
-      
       Swal.close();
-      
-      // Navigate to the results page, passing the prediction details in route state
       navigate('/dashboard/predict/result', { state: { result: response.data, inputData: data } });
-
     } catch (err) {
       Swal.close();
-      const errorMessage = err.response?.data?.error || 'Diagnostic evaluation failed. Ensure the ML backend is online.';
-      Swal.fire({
-        icon: 'error',
-        title: 'Evaluation Failed',
-        text: errorMessage,
-        confirmButtonColor: '#ef4444'
-      });
+      
+      // Offline fallback on network error
+      if (err.message === 'Network Error' || !err.response) {
+        handleSaveOffline(data);
+      } else {
+        const errorMessage = err.response?.data?.error || 'Diagnostic evaluation failed.';
+        Swal.fire({
+          icon: 'error',
+          title: 'Evaluation Failed',
+          text: errorMessage,
+          confirmButtonColor: '#ef4444'
+        });
+      }
     } finally {
       setLoading(false);
     }
@@ -138,38 +248,89 @@ const PredictionForm = () => {
         </p>
       </div>
 
-      {/* AI Patient Notes Assistant (Optional) */}
-      <div className="glass-card rounded-2xl p-5 border border-slate-150 dark:border-slate-850 space-y-3">
-        <h3 className="text-xs font-bold text-slate-800 dark:text-slate-200 uppercase tracking-wider flex items-center gap-2">
-          <span className="flex h-2.5 w-2.5 rounded-full bg-medical-500 animate-ping shrink-0"></span>
-          ✨ AI Patient Notes Assistant (Optional)
-        </h3>
-        <p className="text-[11px] text-slate-500 dark:text-slate-400">
-          Paste unstructured patient clinical notes or intake transcripts. The AI will extract variables and auto-fill the forms instantly.
-        </p>
-        <div className="flex flex-col sm:flex-row gap-3">
-          <textarea
-            placeholder="e.g. Patient John presents with atypical angina. He is 54 years old. Resting BP is 135, serum cholesterol is 210. Maximum heart rate is 140. ECG shows left ventricular hypertrophy..."
-            value={rawNotes}
-            onChange={(e) => setRawNotes(e.target.value)}
-            className="flex-1 min-h-[70px] p-3 text-xs rounded-xl border border-slate-200 bg-white dark:border-slate-750 dark:bg-slate-900 text-slate-800 dark:text-slate-150 focus:outline-none focus:ring-1 focus:ring-medical-500 resize-y"
-          />
-          <button
-            type="button"
-            onClick={handleExtractWithAI}
-            disabled={extracting || !rawNotes.trim()}
-            className="px-4 py-3 bg-slate-800 hover:bg-slate-900 text-white dark:bg-slate-700 dark:hover:bg-slate-650 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5 shrink-0 disabled:opacity-50 cursor-pointer self-stretch sm:self-end"
-          >
-            {extracting ? (
-              <>
-                <div className="h-3 w-3 animate-spin rounded-full border-2 border-white border-t-transparent"></div>
-                Extracting...
-              </>
-            ) : (
-              'Extract Variables'
-            )}
-          </button>
+      {/* AI Patient Intake Intelligence Hub */}
+      <div className="glass-card rounded-2xl p-6 border border-slate-150 dark:border-slate-850 space-y-4 shadow-sm">
+        <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-2 border-b border-slate-100 dark:border-slate-800 pb-3">
+          <h3 className="text-xs font-bold text-slate-800 dark:text-slate-200 uppercase tracking-wider flex items-center gap-2">
+            <FaBrain className="text-medical-500 animate-pulse h-4 w-4" />
+            Clinical Intake Intelligence Hub
+          </h3>
+          
+          {/* Mode Tabs */}
+          <div className="flex rounded-lg bg-slate-100 dark:bg-slate-800 p-0.5 text-[10px] font-bold">
+            <button
+              type="button"
+              onClick={() => setIntakeMode('notes')}
+              className={`px-3 py-1 rounded-md cursor-pointer transition ${intakeMode === 'notes' ? 'bg-white dark:bg-slate-900 text-slate-850 dark:text-slate-100 shadow-sm' : 'text-slate-450'}`}
+            >
+              Paste Notes
+            </button>
+            <button
+              type="button"
+              onClick={() => setIntakeMode('ocr')}
+              className={`px-3 py-1 rounded-md cursor-pointer transition ${intakeMode === 'ocr' ? 'bg-white dark:bg-slate-900 text-slate-850 dark:text-slate-100 shadow-sm' : 'text-slate-450'}`}
+            >
+              Upload Document Scan (OCR)
+            </button>
+          </div>
         </div>
+
+        {/* Tab A: Paste Notes */}
+        {intakeMode === 'notes' && (
+          <div className="space-y-3">
+            <p className="text-[11px] text-slate-500 dark:text-slate-400">
+              Paste raw clinician notes or intake summaries. The AI will parse details and auto-fill the forms instantly.
+            </p>
+            <div className="flex flex-col sm:flex-row gap-3">
+              <textarea
+                placeholder="e.g. Patient John presents with atypical angina. He is 54 years old. Resting BP is 135, serum cholesterol is 210. Maximum heart rate is 140. ECG shows left ventricular hypertrophy..."
+                value={rawNotes}
+                onChange={(e) => setRawNotes(e.target.value)}
+                className="flex-1 min-h-[70px] p-3 text-xs rounded-xl border border-slate-200 bg-white dark:border-slate-750 dark:bg-slate-900 text-slate-800 dark:text-slate-150 focus:outline-none focus:ring-1 focus:ring-medical-500 resize-y"
+              />
+              <button
+                type="button"
+                onClick={handleExtractWithAI}
+                disabled={extracting || !rawNotes.trim()}
+                className="px-4 py-3 bg-slate-800 hover:bg-slate-900 text-white dark:bg-slate-700 dark:hover:bg-slate-650 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5 shrink-0 disabled:opacity-50 cursor-pointer self-stretch sm:self-end"
+              >
+                {extracting ? (
+                  <>
+                    <div className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-white border-t-transparent"></div>
+                    Extracting...
+                  </>
+                ) : (
+                  'Extract Variables'
+                )}
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Tab B: Upload Scan (OCR) */}
+        {intakeMode === 'ocr' && (
+          <div className="space-y-3">
+            <p className="text-[11px] text-slate-500 dark:text-slate-400">
+              Upload a picture of a laboratory report, ECG read-sheet, or medical slip. Gemini Multimodal will extract the cardiac parameters directly.
+            </p>
+            <div className="flex items-center justify-center border-2 border-dashed border-slate-200 dark:border-slate-850 rounded-xl p-5 hover:bg-slate-50 dark:hover:bg-slate-800/20 transition cursor-pointer relative group">
+              <input
+                type="file"
+                accept="image/*"
+                onChange={handleOCRUpload}
+                disabled={ocrLoading}
+                className="absolute inset-0 opacity-0 cursor-pointer"
+              />
+              <div className="text-center space-y-2">
+                <FaUpload className="mx-auto h-6 w-6 text-slate-400 group-hover:text-medical-500 transition" />
+                <span className="block text-xs font-bold text-slate-700 dark:text-slate-350">
+                  {ocrLoading ? 'Scanning Document...' : 'Choose Lab Report Scan Image'}
+                </span>
+                <span className="block text-[9px] text-slate-400">JPEG, PNG, or GIF up to 2MB</span>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Tabs Menu */}
@@ -251,7 +412,7 @@ const PredictionForm = () => {
 
         {/* TAB 2: Vitals */}
         {activeTab === 'vitals' && (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 animate-fade-in">
             {/* Chest Pain Type (cp) */}
             <div className="space-y-1.5">
               <label className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wide">
@@ -261,14 +422,14 @@ const PredictionForm = () => {
                 className="w-full px-4 py-3 rounded-xl border border-slate-200 bg-white/50 dark:border-slate-750 dark:bg-slate-850 text-slate-800 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-medical-500/50"
                 {...register('cp')}
               >
-                <option value="0">Typical Angina (Squeezing, heavy discomfort)</option>
-                <option value="1">Atypical Angina (Sharp, brief discomfort)</option>
-                <option value="2">Non-Anginal Pain (Traced to respiratory/digestive)</option>
-                <option value="3">Asymptomatic (No typical cardiac pain reported)</option>
+                <option value="0">Typical Angina (0)</option>
+                <option value="1">Atypical Angina (1)</option>
+                <option value="2">Non-Anginal Pain (2)</option>
+                <option value="3">Asymptomatic (3)</option>
               </select>
             </div>
 
-            {/* Resting BP (trestbps) */}
+            {/* Resting Blood Pressure (trestbps) */}
             <div className="space-y-1.5">
               <label className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wide">
                 Resting Blood Pressure (mmHg)
@@ -279,69 +440,30 @@ const PredictionForm = () => {
                 className={`w-full px-4 py-3 rounded-xl border bg-white/50 dark:bg-slate-850 text-slate-800 dark:text-slate-100 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-medical-500/50 transition-all ${
                   errors.trestbps ? 'border-red-500' : 'border-slate-200 dark:border-slate-750'
                 }`}
-                {...register('trestbps', {
-                  required: 'Resting BP is required',
-                  min: { value: 50, message: 'Minimum is 50 mmHg' },
-                  max: { value: 300, message: 'Maximum is 300 mmHg' }
+                {...register('trestbps', { 
+                  required: 'Blood pressure is required',
+                  min: { value: 50, message: 'Minimum BP is 50' },
+                  max: { value: 250, message: 'Maximum BP is 250' }
                 })}
               />
               {errors.trestbps && <p className="text-xs text-red-500 font-semibold">{errors.trestbps.message}</p>}
             </div>
 
-            {/* Max Heart Rate (thalach) */}
-            <div className="space-y-1.5">
-              <label className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wide">
-                Maximum Heart Rate (bpm)
-              </label>
-              <input
-                type="number"
-                placeholder="e.g. 150"
-                className={`w-full px-4 py-3 rounded-xl border bg-white/50 dark:bg-slate-850 text-slate-800 dark:text-slate-100 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-medical-500/50 transition-all ${
-                  errors.thalach ? 'border-red-500' : 'border-slate-200 dark:border-slate-750'
-                }`}
-                {...register('thalach', {
-                  required: 'Max heart rate is required',
-                  min: { value: 50, message: 'Minimum is 50 bpm' },
-                  max: { value: 250, message: 'Maximum is 250 bpm' }
-                })}
-              />
-              {errors.thalach && <p className="text-xs text-red-500 font-semibold">{errors.thalach.message}</p>}
-            </div>
-
-            {/* Exercise Angina (exang) */}
-            <div className="space-y-1.5">
-              <label className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wide">
-                Exercise Induced Angina
-              </label>
-              <select
-                className="w-full px-4 py-3 rounded-xl border border-slate-200 bg-white/50 dark:border-slate-750 dark:bg-slate-850 text-slate-800 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-medical-500/50"
-                {...register('exang')}
-              >
-                <option value="0">No (Angina not triggered by mild exercise)</option>
-                <option value="1">Yes (Physical load causes chest pressure)</option>
-              </select>
-            </div>
-          </div>
-        )}
-
-        {/* TAB 3: Labs */}
-        {activeTab === 'labs' && (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {/* Cholesterol (chol) */}
+            {/* Serum Cholesterol (chol) */}
             <div className="space-y-1.5">
               <label className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wide">
                 Serum Cholesterol (mg/dl)
               </label>
               <input
                 type="number"
-                placeholder="e.g. 220"
+                placeholder="e.g. 233"
                 className={`w-full px-4 py-3 rounded-xl border bg-white/50 dark:bg-slate-850 text-slate-800 dark:text-slate-100 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-medical-500/50 transition-all ${
                   errors.chol ? 'border-red-500' : 'border-slate-200 dark:border-slate-750'
                 }`}
-                {...register('chol', {
-                  required: 'Cholesterol level is required',
-                  min: { value: 50, message: 'Minimum is 50 mg/dl' },
-                  max: { value: 600, message: 'Maximum is 600 mg/dl' }
+                {...register('chol', { 
+                  required: 'Cholesterol is required',
+                  min: { value: 50, message: 'Minimum cholesterol is 50' },
+                  max: { value: 600, message: 'Maximum cholesterol is 600' }
                 })}
               />
               {errors.chol && <p className="text-xs text-red-500 font-semibold">{errors.chol.message}</p>}
@@ -356,12 +478,17 @@ const PredictionForm = () => {
                 className="w-full px-4 py-3 rounded-xl border border-slate-200 bg-white/50 dark:border-slate-750 dark:bg-slate-850 text-slate-800 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-medical-500/50"
                 {...register('fbs')}
               >
-                <option value="0">False (Fasting blood sugar &lt;= 120 mg/dl)</option>
-                <option value="1">True (Fasting blood sugar &gt; 120 mg/dl)</option>
+                <option value="0">False (Normal Sugar)</option>
+                <option value="1">True (Elevated Sugar)</option>
               </select>
             </div>
+          </div>
+        )}
 
-            {/* Rest ECG (restecg) */}
+        {/* TAB 3: Diagnostic Labs */}
+        {activeTab === 'labs' && (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 animate-fade-in">
+            {/* Resting ECG (restecg) */}
             <div className="space-y-1.5">
               <label className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wide">
                 Resting Electrocardiographic Results
@@ -370,127 +497,155 @@ const PredictionForm = () => {
                 className="w-full px-4 py-3 rounded-xl border border-slate-200 bg-white/50 dark:border-slate-750 dark:bg-slate-850 text-slate-800 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-medical-500/50"
                 {...register('restecg')}
               >
-                <option value="0">Normal ECG tracing</option>
-                <option value="1">ST-T Wave Abnormality (T wave inversions / ST elevations)</option>
-                <option value="2">Left Ventricular Hypertrophy (Est. by Estes' criteria)</option>
+                <option value="0">Normal (0)</option>
+                <option value="1">ST-T Wave Abnormality (1)</option>
+                <option value="2">Left Ventricular Hypertrophy (2)</option>
+              </select>
+            </div>
+
+            {/* Max Heart Rate (thalach) */}
+            <div className="space-y-1.5">
+              <label className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wide">
+                Maximum Heart Rate Achieved (bpm)
+              </label>
+              <input
+                type="number"
+                placeholder="e.g. 150"
+                className={`w-full px-4 py-3 rounded-xl border bg-white/50 dark:bg-slate-850 text-slate-800 dark:text-slate-100 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-medical-500/50 transition-all ${
+                  errors.thalach ? 'border-red-500' : 'border-slate-200 dark:border-slate-750'
+                }`}
+                {...register('thalach', { 
+                  required: 'Max heart rate is required',
+                  min: { value: 60, message: 'Minimum HR is 60' },
+                  max: { value: 220, message: 'Maximum HR is 220' }
+                })}
+              />
+              {errors.thalach && <p className="text-xs text-red-500 font-semibold">{errors.thalach.message}</p>}
+            </div>
+
+            {/* Exercise Angina (exang) */}
+            <div className="space-y-1.5">
+              <label className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wide">
+                Exercise Induced Angina
+              </label>
+              <select
+                className="w-full px-4 py-3 rounded-xl border border-slate-200 bg-white/50 dark:border-slate-750 dark:bg-slate-850 text-slate-800 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-medical-500/50"
+                {...register('exang')}
+              >
+                <option value="0">No (0)</option>
+                <option value="1">Yes (1)</option>
               </select>
             </div>
 
             {/* Old Peak (oldpeak) */}
             <div className="space-y-1.5">
               <label className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wide">
-                ST Depression (Oldpeak ST)
+                ST Depression Oldpeak (induced by exercise relative to rest)
               </label>
               <input
                 type="number"
                 step="0.1"
-                placeholder="e.g. 1.8"
+                placeholder="e.g. 1.0"
                 className={`w-full px-4 py-3 rounded-xl border bg-white/50 dark:bg-slate-850 text-slate-800 dark:text-slate-100 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-medical-500/50 transition-all ${
                   errors.oldpeak ? 'border-red-500' : 'border-slate-200 dark:border-slate-750'
                 }`}
-                {...register('oldpeak', {
-                  required: 'ST depression metric is required',
-                  min: { value: 0.0, message: 'Minimum is 0.0' },
-                  max: { value: 10.0, message: 'Maximum is 10.0' }
+                {...register('oldpeak', { 
+                  required: 'Oldpeak is required',
+                  min: { value: 0.0, message: 'Minimum oldpeak is 0.0' },
+                  max: { value: 10.0, message: 'Maximum oldpeak is 10.0' }
                 })}
               />
               {errors.oldpeak && <p className="text-xs text-red-500 font-semibold">{errors.oldpeak.message}</p>}
             </div>
 
-            {/* Slope (slope) */}
+            {/* ST Slope (slope) */}
             <div className="space-y-1.5">
               <label className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wide">
-                Slope of Peak Exercise ST
+                Slope of the Peak Exercise ST Segment
               </label>
               <select
                 className="w-full px-4 py-3 rounded-xl border border-slate-200 bg-white/50 dark:border-slate-750 dark:bg-slate-850 text-slate-800 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-medical-500/50"
                 {...register('slope')}
               >
-                <option value="0">Upsloping (Typical healthy performance)</option>
-                <option value="1">Flat (Signs of reduced coronary circulation)</option>
-                <option value="2">Downsloping (High indicator of ischemia)</option>
+                <option value="0">Upsloping (0)</option>
+                <option value="1">Flat (1)</option>
+                <option value="2">Downsloping (2)</option>
               </select>
             </div>
 
-            {/* CA (ca) */}
+            {/* Vessels (ca) */}
             <div className="space-y-1.5">
               <label className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wide">
-                Number of Major Vessels Colored (CA)
+                Number of Major Vessels Colored by Flourosopy (0-4)
               </label>
               <select
                 className="w-full px-4 py-3 rounded-xl border border-slate-200 bg-white/50 dark:border-slate-750 dark:bg-slate-850 text-slate-800 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-medical-500/50"
                 {...register('ca')}
               >
-                <option value="0">0 vessels colored by fluoroscopy</option>
-                <option value="1">1 major vessel</option>
-                <option value="2">2 major vessels</option>
-                <option value="3">3 major vessels</option>
-                <option value="4">4 major vessels</option>
+                <option value="0">0 Vessels Colored</option>
+                <option value="1">1 Vessel Colored</option>
+                <option value="2">2 Vessels Colored</option>
+                <option value="3">3 Vessels Colored</option>
+                <option value="4">4 Vessels (Uncertainty)</option>
               </select>
             </div>
 
-            {/* Thal (thal) */}
+            {/* Thalassemia (thal) */}
             <div className="space-y-1.5 md:col-span-2">
               <label className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wide">
-                Thalassemia (Thal) Status
+                Thalassemia Classification (Thal)
               </label>
               <select
                 className="w-full px-4 py-3 rounded-xl border border-slate-200 bg-white/50 dark:border-slate-750 dark:bg-slate-850 text-slate-800 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-medical-500/50"
                 {...register('thal')}
               >
-                <option value="1">Normal (No thalassemia markers)</option>
-                <option value="2">Fixed Defect (Steady, non-expanding perfusion defect)</option>
-                <option value="3">Reversible Defect (Defect expands during stress and returns to normal)</option>
-                <option value="0">Other / Unregistered</option>
+                <option value="0">Normal Defect / Unknown (0)</option>
+                <option value="1">Fixed Defect (1)</option>
+                <option value="2">Normal (2)</option>
+                <option value="3">Reversable Defect (3)</option>
               </select>
             </div>
           </div>
         )}
 
-        {/* Tab Navigation Buttons */}
-        <div className="flex justify-between items-center pt-4 border-t border-slate-150 dark:border-slate-750">
-          <div>
-            {activeTab !== 'demographics' && (
-              <button
-                type="button"
-                onClick={() => {
-                  if (activeTab === 'labs') setActiveTab('vitals');
-                  else if (activeTab === 'vitals') setActiveTab('demographics');
-                }}
-                className="px-5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 font-semibold hover:bg-slate-100 dark:hover:bg-slate-800 transition cursor-pointer text-sm"
-              >
-                Back
-              </button>
-            )}
-          </div>
-
-          <div>
-            {activeTab !== 'labs' ? (
-              <button
-                type="button"
-                onClick={() => {
-                  if (activeTab === 'demographics') setActiveTab('vitals');
-                  else if (activeTab === 'vitals') setActiveTab('labs');
-                }}
-                className="px-5 py-2.5 rounded-xl bg-slate-800 text-white font-semibold hover:bg-slate-900 transition flex items-center gap-2 cursor-pointer text-sm"
-              >
-                Next Step
-                <FaArrowRight className="h-3.5 w-3.5" />
-              </button>
-            ) : (
-              <button
-                type="submit"
-                disabled={loading}
-                className="px-6 py-3 rounded-xl bg-gradient-to-r from-medical-600 to-rose-500 text-white font-bold shadow-lg shadow-medical-500/10 hover:shadow-rose-500/10 hover:scale-101 transition flex items-center gap-2 cursor-pointer text-sm"
-              >
-                Run Risk Analysis
-                <FaHeart className="h-4 w-4 animate-pulse" />
-              </button>
-            )}
-          </div>
+        {/* Tab Navigation buttons */}
+        <div className="flex justify-between items-center pt-6 border-t border-slate-100 dark:border-slate-800">
+          <button
+            type="button"
+            onClick={() => {
+              if (activeTab === 'labs') setActiveTab('vitals');
+              else if (activeTab === 'vitals') setActiveTab('demographics');
+            }}
+            disabled={activeTab === 'demographics'}
+            className="px-5 py-2 rounded-xl text-xs font-bold bg-slate-100 dark:bg-slate-850 text-slate-650 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-800 disabled:opacity-40 cursor-pointer select-none"
+          >
+            Back
+          </button>
+          
+          {activeTab !== 'labs' ? (
+            <button
+              type="button"
+              onClick={() => {
+                if (activeTab === 'demographics') setActiveTab('vitals');
+                else if (activeTab === 'vitals') setActiveTab('labs');
+              }}
+              className="px-5 py-2.5 bg-slate-800 hover:bg-slate-900 text-white rounded-xl text-xs font-bold flex items-center gap-1.5 cursor-pointer shadow-sm"
+            >
+              Continue <FaArrowRight className="h-3 w-3" />
+            </button>
+          ) : (
+            <button
+              type="submit"
+              disabled={loading}
+              className="px-6 py-2.5 bg-gradient-to-r from-medical-600 to-sky-500 hover:from-medical-700 hover:to-sky-600 text-white font-bold rounded-xl text-xs flex items-center gap-1.5 transition active:scale-98 shadow-md hover:shadow-medical-100 dark:hover:shadow-none cursor-pointer"
+            >
+              {loading ? 'Running AI Assessment...' : 'Run Diagnostics'}
+            </button>
+          )}
         </div>
 
       </form>
+
     </div>
   );
 };

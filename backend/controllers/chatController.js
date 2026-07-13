@@ -139,3 +139,77 @@ exports.extractNotes = async (req, res) => {
     res.status(500).json({ error: 'Failed to parse patient notes using AI.' });
   }
 };
+
+exports.extractOCR = async (req, res) => {
+  const { image, mimeType } = req.body;
+
+  if (!image || !mimeType) {
+    return res.status(400).json({ error: 'Image data and mimeType are required.' });
+  }
+
+  if (!genAI) {
+    console.log('Gemini API key is not set for OCR extraction. Returning mock parsed dataset.');
+    const extracted = {
+      patient_name: 'David Miller',
+      age: 58,
+      sex: 1,
+      cp: 2,
+      trestbps: 140,
+      chol: 250,
+      fbs: 0,
+      restecg: 1,
+      thalach: 135,
+      exang: 1,
+      oldpeak: 1.8,
+      slope: 2,
+      ca: 1,
+      thal: 3
+    };
+    return res.json({ extracted, isFallback: true });
+  }
+
+  try {
+    const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
+    const base64Data = image.replace(/^data:image\/\w+;base64,/, '');
+
+    const imagePart = {
+      inlineData: {
+        data: base64Data,
+        mimeType: mimeType
+      }
+    };
+
+    const prompt = `You are an expert clinical laboratory data extraction agent. Extract the following 13 cardiovascular markers and the patient's name from the attached lab report scan or clinical document image. 
+    Return the results in raw, valid JSON matching the following schema. If any parameter is not mentioned, provide standard median clinical defaults:
+    - age (number: default 50)
+    - sex (number: 1 for male, 0 for female, default 1)
+    - cp (number: chest pain type: 0=typical, 1=atypical, 2=non-anginal, 3=asymptomatic, default 1)
+    - trestbps (number: resting blood pressure in mmHg, default 130)
+    - chol (number: serum cholesterol in mg/dl, default 220)
+    - fbs (number: fasting blood sugar > 120: 1 if yes, 0 if no, default 0)
+    - restecg (number: resting ECG: 0=normal, 1=ST wave abnormality, 2=LVH, default 1)
+    - thalach (number: maximum heart rate, default 150)
+    - exang (number: exercise induced angina: 1 if yes, 0 if no, default 0)
+    - oldpeak (number: ST depression oldpeak, default 1.0)
+    - slope (number: ST slope: 0=upsloping, 1=flat, 2=downsloping, default 1)
+    - ca (number: number of vessels colored 0-4, default 0)
+    - thal (number: thalassemia: 1=fixed, 2=normal, 3=reversible, default 2)
+    - patient_name (string: patient full name if found, default 'Unknown Patient')
+
+    Return ONLY the raw JSON object, without markdown wraps, matching the schema above.`;
+
+    const result = await model.generateContent([prompt, imagePart]);
+    const response = await result.response;
+    let text = response.text().trim();
+
+    if (text.startsWith('```')) {
+      text = text.replace(/^```json/, '').replace(/^```/, '').replace(/```$/, '').trim();
+    }
+
+    const extracted = JSON.parse(text);
+    res.json({ extracted });
+  } catch (err) {
+    console.error('OCR Extraction error:', err.message);
+    res.status(550).json({ error: 'Failed to extract variables from clinical scan.' });
+  }
+};

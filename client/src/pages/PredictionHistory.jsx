@@ -13,7 +13,8 @@ import {
   FaChevronRight,
   FaHeartbeat,
   FaArrowRight,
-  FaSortAmountDown
+  FaSortAmountDown,
+  FaWifi
 } from 'react-icons/fa';
 
 const PredictionHistory = () => {
@@ -50,16 +51,31 @@ const PredictionHistory = () => {
           result: resultFilter
         }
       });
-      setPredictions(response.data.predictions);
+      
+      const remoteLogs = response.data.predictions || [];
+      
+      // Load offline predictions from localStorage
+      const offlineLogs = JSON.parse(localStorage.getItem('offline_predictions') || '[]');
+      
+      // Apply filters locally on offline records
+      let filteredOffline = [...offlineLogs];
+      if (debouncedSearch) {
+        filteredOffline = filteredOffline.filter(o => 
+          o.patient_name.toLowerCase().includes(debouncedSearch.toLowerCase())
+        );
+      }
+      if (resultFilter) {
+        filteredOffline = filteredOffline.filter(o => o.result === resultFilter);
+      }
+
+      // Prepend offline records to the list
+      setPredictions([...filteredOffline, ...remoteLogs]);
       setPagination(response.data.pagination);
     } catch (err) {
       console.error('Failed to fetch prediction history:', err);
-      Swal.fire({
-        icon: 'error',
-        title: 'Query Failed',
-        text: 'Could not load clinical prediction logs. Ensure database is running.',
-        confirmButtonColor: '#ef4444'
-      });
+      // Fallback to only offline logs if API/database is completely offline
+      const offlineLogs = JSON.parse(localStorage.getItem('offline_predictions') || '[]');
+      setPredictions(offlineLogs);
     } finally {
       setLoading(false);
     }
@@ -69,6 +85,49 @@ const PredictionHistory = () => {
     fetchHistory(1);
   }, [debouncedSearch, resultFilter]);
 
+  // Offline Auto-Syncing engine
+  useEffect(() => {
+    const syncOfflineLogs = async () => {
+      const offlineLogs = JSON.parse(localStorage.getItem('offline_predictions') || '[]');
+      if (offlineLogs.length === 0 || !navigator.onLine) return;
+
+      let syncedCount = 0;
+      const remainingLogs = [];
+
+      for (const log of offlineLogs) {
+        try {
+          const { id, created_at, result, confidence, isOffline, ...payload } = log;
+          await api.post('/predict', payload);
+          syncedCount++;
+        } catch (err) {
+          console.error('Failed to sync offline log:', err);
+          remainingLogs.push(log); // Keep failed logs for next attempt
+        }
+      }
+
+      localStorage.setItem('offline_predictions', JSON.stringify(remainingLogs));
+
+      if (syncedCount > 0) {
+        Swal.fire({
+          icon: 'success',
+          title: 'Database Auto-Synced',
+          text: `Successfully uploaded ${syncedCount} cached screenings to TiDB Cloud.`,
+          timer: 2000,
+          showConfirmButton: false,
+          toast: true,
+          position: 'top-end'
+        });
+        fetchHistory(1);
+      }
+    };
+
+    syncOfflineLogs();
+
+    // Trigger sync when connectivity returns
+    window.addEventListener('online', syncOfflineLogs);
+    return () => window.removeEventListener('online', syncOfflineLogs);
+  }, []);
+
   const handlePageChange = (newPage) => {
     if (newPage >= 1 && newPage <= pagination.totalPages) {
       fetchHistory(newPage);
@@ -76,6 +135,15 @@ const PredictionHistory = () => {
   };
 
   const handleViewResult = (record) => {
+    if (record.isOffline) {
+      Swal.fire({
+        icon: 'info',
+        title: 'Offline Record',
+        text: 'This assessment is currently pending network synchronization. Details cannot be viewed until synced.',
+        confirmButtonColor: '#0284c7'
+      });
+      return;
+    }
     const inputData = {
       trestbps: record.trestbps,
       chol: record.chol,
@@ -90,10 +158,10 @@ const PredictionHistory = () => {
     navigate('/dashboard/predict/result', { state: { result: record, inputData } });
   };
 
-  const handleDelete = async (id) => {
+  const handleDelete = async (id, isOffline) => {
     Swal.fire({
       title: 'Delete Record?',
-      text: "You won't be able to revert this! This patient assessment log will be permanently removed.",
+      text: "This patient assessment log will be permanently removed.",
       icon: 'warning',
       showCancelButton: true,
       confirmButtonColor: '#dc2626',
@@ -101,6 +169,15 @@ const PredictionHistory = () => {
       confirmButtonText: 'Yes, delete log'
     }).then(async (result) => {
       if (result.isConfirmed) {
+        if (isOffline) {
+          const offlineLogs = JSON.parse(localStorage.getItem('offline_predictions') || '[]');
+          const updated = offlineLogs.filter(o => o.id !== id);
+          localStorage.setItem('offline_predictions', JSON.stringify(updated));
+          Swal.fire('Deleted', 'Offline log removed.', 'success');
+          fetchHistory(pagination.page);
+          return;
+        }
+
         try {
           await api.delete(`/predictions/${id}`);
           Swal.fire({
@@ -156,7 +233,6 @@ const PredictionHistory = () => {
 
   const exportBatchCSV = async () => {
     try {
-      // Fetch up to 10000 records to do a true full batch database export
       const response = await api.get('/predictions', {
         params: { page: 1, limit: 10000, search: debouncedSearch, result: resultFilter }
       });
@@ -219,11 +295,9 @@ const PredictionHistory = () => {
     }
   };
 
-  // Process list with client-side sort & age filters for high responsiveness
   const getProcessedPredictions = () => {
     let processed = [...predictions];
 
-    // Age band filter
     if (ageFilter) {
       processed = processed.filter(p => {
         if (ageFilter === 'under40') return p.age < 40;
@@ -234,7 +308,6 @@ const PredictionHistory = () => {
       });
     }
 
-    // Sort mappings
     processed.sort((a, b) => {
       if (sortBy === 'date_desc') return new Date(b.created_at) - new Date(a.created_at);
       if (sortBy === 'date_asc') return new Date(a.created_at) - new Date(b.created_at);
@@ -272,7 +345,7 @@ const PredictionHistory = () => {
       </div>
 
       {/* Advanced Query & Filter Bar */}
-      <div className="glass-card rounded-2xl p-5 border border-slate-150 dark:border-slate-850 space-y-4">
+      <div className="glass-card rounded-2xl p-5 border border-slate-150 dark:border-slate-850 space-y-4 shadow-sm">
         
         {/* Search Input Row */}
         <div className="relative w-full">
@@ -378,13 +451,19 @@ const PredictionHistory = () => {
                       {record.age} yrs / {record.gender === 1 ? 'Male' : 'Female'}
                     </td>
                     <td className="px-6 py-4 text-center">
-                      <span className={`inline-flex items-center px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider ${
-                        record.result === 'High Risk' 
-                          ? 'bg-rose-50 text-rose-600 dark:bg-rose-950/20 dark:text-rose-400' 
-                          : 'bg-emerald-50 text-emerald-600 dark:bg-emerald-950/20 dark:text-emerald-400'
-                      }`}>
-                        {record.result}
-                      </span>
+                      {record.isOffline ? (
+                        <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider bg-amber-50 text-amber-600 dark:bg-amber-950/20 dark:text-amber-400 animate-pulse">
+                          <FaWifi className="h-2 w-2" /> Offline (Pending)
+                        </span>
+                      ) : (
+                        <span className={`inline-flex items-center px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider ${
+                          record.result === 'High Risk' 
+                            ? 'bg-rose-50 text-rose-600 dark:bg-rose-950/20 dark:text-rose-400' 
+                            : 'bg-emerald-50 text-emerald-600 dark:bg-emerald-950/20 dark:text-emerald-400'
+                        }`}>
+                          {record.result}
+                        </span>
+                      )}
                     </td>
                     <td className="px-6 py-4 text-center font-bold text-slate-805 dark:text-slate-200">
                       {record.confidence}%
@@ -394,15 +473,15 @@ const PredictionHistory = () => {
                         <button
                           onClick={() => handleViewResult(record)}
                           title="View Details"
-                          className="p-1.5 rounded-lg border border-slate-250 text-slate-600 hover:bg-slate-100 dark:border-slate-700 dark:text-slate-350 dark:hover:bg-slate-800 cursor-pointer"
+                          className="p-1.5 rounded-lg border border-slate-250 text-slate-600 hover:bg-slate-100 dark:border-slate-770 dark:text-slate-350 dark:hover:bg-slate-800 cursor-pointer"
                         >
                           <FaEye className="h-3.5 w-3.5" />
                         </button>
                         <button
                           onClick={() => downloadReport(record)}
                           title="Download PDF"
-                          disabled={pdfLoadingId === record.id}
-                          className="p-1.5 rounded-lg border border-slate-250 text-medical-600 hover:bg-sky-50 dark:border-slate-700 dark:text-sky-400 dark:hover:bg-slate-800 cursor-pointer"
+                          disabled={record.isOffline || pdfLoadingId === record.id}
+                          className="p-1.5 rounded-lg border border-slate-250 text-medical-600 hover:bg-sky-50 dark:border-slate-770 dark:text-sky-400 dark:hover:bg-slate-800 disabled:opacity-30 cursor-pointer"
                         >
                           {pdfLoadingId === record.id ? (
                             <div className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-medical-500 border-t-transparent"></div>
@@ -411,9 +490,9 @@ const PredictionHistory = () => {
                           )}
                         </button>
                         <button
-                          onClick={() => handleDelete(record.id)}
+                          onClick={() => handleDelete(record.id, record.isOffline)}
                           title="Delete Record"
-                          className="p-1.5 rounded-lg border border-slate-250 text-rose-550 hover:bg-rose-50 dark:border-slate-700 dark:text-rose-455 dark:hover:bg-slate-800 cursor-pointer"
+                          className="p-1.5 rounded-lg border border-slate-250 text-rose-550 hover:bg-rose-50 dark:border-slate-770 dark:text-rose-455 dark:hover:bg-slate-800 cursor-pointer"
                         >
                           <FaTrashAlt className="h-3.5 w-3.5" />
                         </button>
