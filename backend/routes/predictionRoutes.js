@@ -15,6 +15,8 @@ router.post('/predict-ocr', chatController.extractOCR);
 router.get('/predictions', predictionController.getPredictions);
 router.get('/predictions/:id', predictionController.getPredictionById);
 router.delete('/predictions/:id', predictionController.deletePrediction);
+router.get('/audit-logs', predictionController.getAuditLogs);
+router.get('/download-template', predictionController.downloadIntakeTemplate);
 router.post('/generate-report', predictionController.generatePDFReport);
 
 module.exports = router;

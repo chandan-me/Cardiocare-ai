@@ -18,7 +18,8 @@ import {
   FaSlidersH,
   FaBookMedical,
   FaRobot,
-  FaUsers
+  FaUsers,
+  FaUserShield
 } from 'react-icons/fa';
 
 const DashboardLayout = () => {
@@ -44,6 +45,10 @@ const DashboardLayout = () => {
     { name: 'Profile', path: '/dashboard/profile', icon: FaUser },
     { name: 'Settings', path: '/dashboard/settings', icon: FaCog },
   ];
+
+  if (user?.role === 'admin') {
+    navItems.splice(4, 0, { name: 'Audit Trail Logs', path: '/dashboard/audit-logs', icon: FaUserShield });
+  }
 
   const sidebarVariants = {
     open: { width: 260, transition: { duration: 0.3, ease: 'easeInOut' } },

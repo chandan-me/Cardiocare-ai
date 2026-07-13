@@ -12,7 +12,8 @@ import {
   FaArrowRight,
   FaRegFileAlt,
   FaUpload,
-  FaBrain
+  FaBrain,
+  FaFileDownload
 } from 'react-icons/fa';
 
 const PredictionForm = () => {
@@ -88,6 +89,40 @@ const PredictionForm = () => {
       });
     } finally {
       setExtracting(false);
+    }
+  };
+
+  const handleDownloadTemplate = async () => {
+    try {
+      Swal.fire({
+        title: 'Generating Template...',
+        text: 'Preparing your clinical PDF checklist.',
+        allowOutsideClick: false,
+        didOpen: () => {
+          Swal.showLoading();
+        }
+      });
+
+      const response = await api.get('/download-template', {
+        responseType: 'blob'
+      });
+
+      const url = window.URL.createObjectURL(new Blob([response.data]));
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', 'Cardiocare_Intake_Checklist_Template.pdf');
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      
+      Swal.close();
+    } catch (err) {
+      console.error('Failed to download template:', err);
+      Swal.fire({
+        icon: 'error',
+        title: 'Download Failed',
+        text: err.response?.data?.error || 'Could not download the clinical template. Please check connection.'
+      });
     }
   };
 
@@ -313,6 +348,17 @@ const PredictionForm = () => {
             <p className="text-[11px] text-slate-500 dark:text-slate-400">
               Upload a picture of a laboratory report, ECG read-sheet, or medical slip. Gemini Multimodal will extract the cardiac parameters directly.
             </p>
+
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center bg-slate-50 dark:bg-slate-800/40 p-3 rounded-xl border border-slate-100 dark:border-slate-800 gap-2">
+              <span className="text-[10px] text-slate-550 dark:text-slate-400 font-bold leading-normal">Need an intake checklist? Print the standard templated clinical slip.</span>
+              <button
+                type="button"
+                onClick={handleDownloadTemplate}
+                className="px-3 py-1.5 bg-slate-800 hover:bg-slate-900 dark:bg-slate-700 dark:hover:bg-slate-655 text-white font-bold rounded-lg text-[9px] cursor-pointer transition flex items-center gap-1 shrink-0 self-stretch sm:self-auto justify-center"
+              >
+                <FaFileDownload /> Download PDF Form
+              </button>
+            </div>
             <div className="flex items-center justify-center border-2 border-dashed border-slate-200 dark:border-slate-850 rounded-xl p-5 hover:bg-slate-50 dark:hover:bg-slate-800/20 transition cursor-pointer relative group">
               <input
                 type="file"

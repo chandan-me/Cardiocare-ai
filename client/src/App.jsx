@@ -21,6 +21,7 @@ import Simulator from './pages/Simulator';
 import Toolkit from './pages/Toolkit';
 import Assistant from './pages/Assistant';
 import Patients from './pages/Patients';
+import AuditLogs from './pages/AuditLogs';
 import NotFound from './pages/NotFound';
 
 function App() {
@@ -58,6 +59,7 @@ function App() {
               <Route path="toolkit" element={<Toolkit />} />
               <Route path="assistant" element={<Assistant />} />
               <Route path="patients" element={<Patients />} />
+              <Route path="audit-logs" element={<AuditLogs />} />
             </Route>
 
             {/* Fallback 404 */}

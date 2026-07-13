@@ -3,6 +3,7 @@ const db = require('../config/db');
 const PDFDocument = require('pdfkit');
 const { GoogleGenerativeAI } = require('@google/generative-ai');
 require('dotenv').config();
+const logAction = require('../middleware/auditLogger');
 
 // Initialize Gemini SDK if API key is provided
 let genAI = null;
@@ -204,7 +205,7 @@ exports.createPrediction = async (req, res) => {
     if (result === 'High Risk' && genAI) {
       try {
         console.log('Requesting Gemini recommendations...');
-        const model = genAI.getGenerativeModel({ model: 'gemini-flash-latest' });
+        const model = genAI.getGenerativeModel({ model: 'gemini-3.1-flash-lite' });
         const prompt = `You are a professional cardiologist. Provide personalized health and lifestyle guidelines for a patient who has been assessed as "High Risk" for heart disease. 
         Patient statistics:
         - Age: ${age}
@@ -251,6 +252,13 @@ exports.createPrediction = async (req, res) => {
     );
 
     const savedId = insertResult.insertId;
+
+    await logAction(userId, 'PREDICTION_RUN', { 
+      prediction_id: savedId, 
+      patient_name, 
+      result, 
+      confidence 
+    });
 
     res.status(201).json({
       id: savedId,
@@ -385,6 +393,7 @@ exports.deletePrediction = async (req, res) => {
     }
 
     await db.query('DELETE FROM predictions WHERE id = ?', [id]);
+    await logAction(userId, 'PREDICTION_DELETE', { prediction_id: id, patient_name: prediction.patient_name });
     res.json({ message: 'Prediction record deleted successfully' });
 
   } catch (err) {
@@ -616,5 +625,96 @@ exports.quickPredict = async (req, res) => {
       risk_probability: (isHigh ? computedConf / 100 : (100 - computedConf) / 100).toFixed(4),
       isFallback: true
     });
+  }
+};
+
+exports.getAuditLogs = async (req, res) => {
+  const role = req.user.role;
+  if (role !== 'admin') {
+    return res.status(403).json({ error: 'Access denied: Auditing is restricted to administrators.' });
+  }
+
+  try {
+    const logs = await db.query(
+      `SELECT al.*, u.name as user_name, u.email as user_email 
+       FROM audit_logs al 
+       JOIN users u ON al.user_id = u.id 
+       ORDER BY al.created_at DESC`
+    );
+    res.json(logs);
+  } catch (err) {
+    console.error('Error fetching audit logs:', err.message);
+    res.status(500).json({ error: 'Server error while retrieving audit trails' });
+  }
+};
+
+exports.downloadIntakeTemplate = async (req, res) => {
+  try {
+    const doc = new PDFDocument({ margin: 50 });
+
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', 'attachment; filename=Cardiocare_Intake_Checklist_Template.pdf');
+    doc.pipe(res);
+
+    doc.fontSize(20).font('Helvetica-Bold').fillColor('#0284c7').text('CARDIOCARE AI - CLINICAL INTAKE CHECKLIST', { align: 'center' });
+    doc.moveDown(0.2);
+    doc.fontSize(10).font('Helvetica').fillColor('#64748b').text('Cardiovascular Diagnostic Screening Parameters Intake Form', { align: 'center' });
+    doc.moveDown(1.5);
+
+    doc.fontSize(12).font('Helvetica-Bold').fillColor('#1e293b').text('1. PATIENT DEMOGRAPHICS');
+    doc.lineWidth(1).strokeColor('#e2e8f0').moveTo(50, doc.y + 4).lineTo(550, doc.y + 4).stroke();
+    doc.moveDown(0.8);
+
+    doc.fontSize(10).font('Helvetica').fillColor('#334155');
+    doc.text('Full Name: __________________________________________________', 50, doc.y);
+    doc.moveDown(0.6);
+    doc.text('Age (Years): __________          Biological Sex:   [  ] Male     [  ] Female', 50, doc.y);
+    doc.moveDown(1.5);
+
+    doc.fontSize(12).font('Helvetica-Bold').fillColor('#1e293b').text('2. CARDIAC VITALS');
+    doc.lineWidth(1).strokeColor('#e2e8f0').moveTo(50, doc.y + 4).lineTo(550, doc.y + 4).stroke();
+    doc.moveDown(0.8);
+
+    doc.fontSize(10).font('Helvetica').fillColor('#334155');
+    doc.text('Resting Blood Pressure: ____________ mmHg (desirable: < 120 mmHg)', 50, doc.y);
+    doc.moveDown(0.6);
+    doc.text('Serum Cholesterol: ____________ mg/dL (desirable: < 200 mg/dL)', 50, doc.y);
+    doc.moveDown(0.6);
+    doc.text('Chest Pain Classification (select one):', 50, doc.y);
+    doc.moveDown(0.3);
+    doc.text('    [  ] Typical Angina          [  ] Atypical Angina          [  ] Non-Anginal          [  ] Asymptomatic', 50, doc.y);
+    doc.moveDown(0.6);
+    doc.text('Fasting Blood Sugar > 120 mg/dL:   [  ] True (High)     [  ] False (Normal)', 50, doc.y);
+    doc.moveDown(1.5);
+
+    doc.fontSize(12).font('Helvetica-Bold').fillColor('#1e293b').text('3. DIAGNOSTIC LABS');
+    doc.lineWidth(1).strokeColor('#e2e8f0').moveTo(50, doc.y + 4).lineTo(550, doc.y + 4).stroke();
+    doc.moveDown(0.8);
+
+    doc.text('Resting Electrocardiographic (ECG) Results:', 50, doc.y);
+    doc.moveDown(0.3);
+    doc.text('    [  ] Normal (0)          [  ] ST-T Wave Abnormality (1)          [  ] Left Ventricular Hypertrophy (2)', 50, doc.y);
+    doc.moveDown(0.6);
+    doc.text('Maximum Heart Rate Achieved: ____________ bpm', 50, doc.y);
+    doc.moveDown(0.6);
+    doc.text('Exercise Induced Angina:   [  ] Yes     [  ] No', 50, doc.y);
+    doc.moveDown(0.6);
+    doc.text('ST Depression (Induced by Exercise relative to Rest): ____________', 50, doc.y);
+    doc.moveDown(0.6);
+    doc.text('ST Segment Slope:   [  ] Upsloping          [  ] Flat          [  ] Downsloping', 50, doc.y);
+    doc.moveDown(0.6);
+    doc.text('Major Vessels Colored by Fluoroscopy:   [  ] 0     [  ] 1     [  ] 2     [  ] 3', 50, doc.y);
+    doc.moveDown(0.6);
+    doc.text('Thalassemia Defect:   [  ] Normal     [  ] Fixed Defect     [  ] Reversible Defect', 50, doc.y);
+    doc.moveDown(1.5);
+
+    doc.rect(50, doc.y, 500, 60).fillAndStroke('#f8fafc', '#cbd5e1');
+    doc.fillColor('#475569').fontSize(9).font('Helvetica-Oblique');
+    doc.text('Clinician Instructions: Write values clearly in the designated lines. Once complete, you may either scan the sheet to upload to the AI OCR scanner, or enter parameters manually in the screening form workspace.', 60, doc.y - 50, { width: 480, align: 'center' });
+
+    doc.end();
+  } catch (err) {
+    console.error('Error generating PDF template:', err.message);
+    res.status(500).json({ error: 'Server error while generating clinical checklist' });
   }
 };

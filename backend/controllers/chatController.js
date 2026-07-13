@@ -66,7 +66,7 @@ exports.handleChat = async (req, res) => {
   }
 
   try {
-    const model = genAI.getGenerativeModel({ model: 'gemini-flash-latest' });
+    const model = genAI.getGenerativeModel({ model: 'gemini-3.1-flash-lite' });
 
     const systemPrompt = `You are a helpful, expert clinical cardiology assistant integrated into Cardiocare AI. 
 You assist cardiologists, nurses, and clinicians with interpretations of vital signs, diagnostic reference ranges, AHA/ESC guidelines, cardiovascular health queries, and diagnostic advice.
@@ -129,7 +129,7 @@ exports.extractNotes = async (req, res) => {
   }
 
   try {
-    const model = genAI.getGenerativeModel({ model: 'gemini-flash-latest' });
+    const model = genAI.getGenerativeModel({ model: 'gemini-3.1-flash-lite' });
     const prompt = `You are an expert medical transcriptionist. Extract the following 13 clinical cardiovascular indicators from the doctor's unstructured patient notes. Return the results in raw, valid JSON matching the following schema. If any parameter is not mentioned, provide the standard clinical median defaults as indicated:
     - age (number: default 50)
     - sex (number: 1 for male, 0 for female, default 1)
@@ -201,7 +201,7 @@ exports.extractOCR = async (req, res) => {
   }
 
   try {
-    const model = genAI.getGenerativeModel({ model: 'gemini-flash-latest' });
+    const model = genAI.getGenerativeModel({ model: 'gemini-3.1-flash-lite' });
     const base64Data = image.replace(/^data:image\/\w+;base64,/, '');
 
     const imagePart = {

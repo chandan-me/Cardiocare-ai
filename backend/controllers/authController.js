@@ -4,6 +4,7 @@ const db = require('../config/db');
 require('dotenv').config();
 
 const JWT_SECRET = process.env.JWT_SECRET || 'fallback_secret_for_development';
+const logAction = require('../middleware/auditLogger');
 
 exports.register = async (req, res) => {
   const { name, email, password } = req.body;
@@ -98,6 +99,8 @@ exports.login = async (req, res) => {
 
     const expiresIn = rememberMe ? '7d' : '24h';
     const token = jwt.sign(payload, JWT_SECRET, { expiresIn });
+
+    await logAction(user.id, 'LOGIN', { email: user.email });
 
     res.json({
       token,
