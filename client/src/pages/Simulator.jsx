@@ -65,6 +65,8 @@ const Simulator = () => {
     return () => clearTimeout(delayDebounce);
   }, [params]);
 
+  const blockagePercent = Math.min(Math.round(((params.chol - 100) / 300) * 80 + (params.ca * 5)), 99);
+
   // Color mappings based on risk probability
   const getRiskColor = (prob) => {
     if (prob < 35) return 'text-emerald-500 stroke-emerald-500 bg-emerald-50 dark:bg-emerald-950/20';
@@ -362,6 +364,74 @@ const Simulator = () => {
               <p className="text-[10px] text-slate-400 font-medium pt-1.5">
                 *Outputs represent live predictive probability. Keep values normal to lower risk.
               </p>
+            </div>
+          </div>
+
+          {/* Coronary Artery Plaque Visualizer */}
+          <div className="glass-card rounded-2xl p-5 border border-slate-150 dark:border-slate-850 space-y-4 shadow-sm">
+            <div className="flex justify-between items-center">
+              <h4 className="font-display font-bold text-xs text-slate-700 dark:text-slate-350 uppercase tracking-widest flex items-center gap-1.5">
+                <FaHeart className="text-rose-500 animate-pulse" />
+                Coronary Artery Plaque
+              </h4>
+              <span className={`px-2 py-0.5 rounded text-[10px] font-extrabold ${
+                blockagePercent < 50 
+                  ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/20 dark:text-emerald-400' 
+                  : blockagePercent < 75 
+                    ? 'bg-amber-50 text-amber-750 dark:bg-amber-950/20 dark:text-amber-450' 
+                    : 'bg-rose-50 text-rose-700 dark:bg-rose-950/20 dark:text-rose-455'
+              }`}>
+                {blockagePercent}% Occluded
+              </span>
+            </div>
+
+            <div className="bg-slate-900 border border-slate-800 rounded-xl p-4 flex flex-col items-center justify-center space-y-2.5 relative overflow-hidden shadow-inner">
+              <svg width="100%" height="80" viewBox="0 0 200 80" className="w-full">
+                <rect x="0" y="5" width="200" height="70" rx="4" fill="#3b0712" />
+                <rect x="0" y="15" width="200" height="50" fill="#991b1b" />
+                
+                <g className="animate-pulse">
+                  <circle cx="20" cy="40" r="4" fill="#ef4444" opacity="0.8" />
+                  <circle cx="50" cy="30" r="4" fill="#f87171" opacity="0.6" />
+                  <circle cx="50" cy="50" r="4.5" fill="#dc2626" opacity="0.9" />
+                  <circle cx="80" cy="25" r="4" fill="#f87171" opacity="0.7" />
+                  <circle cx="80" cy="55" r="3.5" fill="#b91c1c" opacity="0.8" />
+                  <circle cx="110" cy="32" r="3" fill="#ef4444" opacity="0.6" />
+                  <circle cx="110" cy="48" r="4" fill="#f87171" opacity="0.7" />
+                  <circle cx="140" cy="38" r="4.5" fill="#dc2626" opacity="0.9" />
+                  <circle cx="170" cy="30" r="4" fill="#ef4444" opacity="0.8" />
+                  <circle cx="170" cy="50" r="4" fill="#b91c1c" opacity="0.9" />
+                </g>
+
+                <path 
+                  d={`M 60,15 Q 100,${15 + (blockagePercent / 100) * 22} 140,15 Z`} 
+                  fill="#eab308" 
+                  stroke="#ca8a04" 
+                  strokeWidth="0.8" 
+                />
+                <path 
+                  d={`M 60,65 Q 100,${65 - (blockagePercent / 100) * 22} 140,65 Z`} 
+                  fill="#eab308" 
+                  stroke="#ca8a04" 
+                  strokeWidth="0.8" 
+                />
+
+                {blockagePercent > 10 && (
+                  <text x="100" y="44" fill="#ffffff" fontSize="6.5" fontWeight="bold" textAnchor="middle" opacity="0.9">
+                    {blockagePercent}% Blocked
+                  </text>
+                )}
+              </svg>
+              
+              <div className="text-[10px] text-center font-medium leading-relaxed">
+                {blockagePercent < 50 ? (
+                  <span className="text-emerald-450">Mild Plaque accumulation. Normal hemodynamic blood flow.</span>
+                ) : blockagePercent < 75 ? (
+                  <span className="text-amber-400">Moderate Arterial Stenosis. Consider lipid-lowering therapies.</span>
+                ) : (
+                  <span className="text-rose-500 font-extrabold animate-pulse">Critical Stenosis! Severe restriction of myocardial blood flow.</span>
+                )}
+              </div>
             </div>
           </div>
 

@@ -41,6 +41,51 @@ const PredictionResult = () => {
   const { result, inputData } = stateData;
   const isHighRisk = result.result === 'High Risk';
 
+  const [lifestyle, setLifestyle] = useState(false);
+  const [statins, setStatins] = useState(false);
+  const [betaBlockers, setBetaBlockers] = useState(false);
+  const [aceInhibitors, setAceInhibitors] = useState(false);
+  const [savingPlan, setSavingPlan] = useState(false);
+
+  const baselineRisk = parseFloat(result.confidence || 0);
+  let reductionFactor = 1.0;
+  if (lifestyle) reductionFactor *= 0.88;
+  if (statins) reductionFactor *= 0.75;
+  if (betaBlockers) reductionFactor *= 0.82;
+  if (aceInhibitors) reductionFactor *= 0.85;
+
+  const projectedRisk = Math.max(5, Math.round(baselineRisk * reductionFactor));
+  const totalReduction = Math.round(baselineRisk - projectedRisk);
+
+  const saveTreatmentPlan = async () => {
+    setSavingPlan(true);
+    try {
+      await api.put(`/predictions/${result.id}`, {
+        treatmentPlan: {
+          lifestyle,
+          statins,
+          betaBlockers,
+          aceInhibitors,
+          projectedRisk
+        }
+      });
+      Swal.fire({
+        icon: 'success',
+        title: 'Treatment Plan Saved',
+        text: 'Patient records updated and transaction audit logged successfully!',
+        timer: 2000,
+        showConfirmButton: false,
+        toast: true,
+        position: 'top-end'
+      });
+    } catch (err) {
+      console.error('Failed to save treatment plan:', err);
+      Swal.fire('Error', 'Could not save treatment plan. Please check connection.', 'error');
+    } finally {
+      setSavingPlan(false);
+    }
+  };
+
   const downloadReport = async () => {
     setDownloading(true);
     try {
@@ -330,6 +375,120 @@ const PredictionResult = () => {
             No recommendations generated. Run prediction again.
           </div>
         )}
+      </div>
+
+      {/* Cardiovascular Risk Treatment Modeler */}
+      <div className="glass-card rounded-2xl p-8 border border-slate-150 dark:border-slate-800 space-y-6">
+        <div>
+          <h3 className="font-display font-bold text-lg text-slate-800 dark:text-slate-100 flex items-center gap-2">
+            <FaBriefcaseMedical className="text-medical-500" />
+            Cardiovascular Risk Treatment Modeler
+          </h3>
+          <p className="text-xs text-slate-400 mt-0.5">
+            Model risk reduction by toggling pharmacological and lifestyle clinical treatments.
+          </p>
+        </div>
+
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+          {/* Toggles */}
+          <div className="space-y-4 text-xs font-semibold text-slate-700 dark:text-slate-350">
+            <h4 className="text-[11px] font-extrabold text-slate-450 uppercase tracking-wider mb-2">Available Interventions</h4>
+            
+            <label className="flex items-center gap-3 p-3 bg-slate-50 dark:bg-slate-800/40 border border-slate-100 dark:border-slate-800 rounded-xl cursor-pointer hover:bg-slate-100/50 dark:hover:bg-slate-800/80 transition">
+              <input 
+                type="checkbox" 
+                checked={lifestyle} 
+                onChange={(e) => setLifestyle(e.target.checked)} 
+                className="h-4 w-4 rounded border-slate-300 text-medical-600 focus:ring-medical-500 cursor-pointer" 
+              />
+              <div>
+                <span className="block text-slate-800 dark:text-slate-200">Lifestyle Modifications (Diet & Exercise)</span>
+                <span className="block text-[10px] text-slate-400 font-medium font-semibold text-emerald-600">Reduces relative risk by -12%</span>
+              </div>
+            </label>
+
+            <label className="flex items-center gap-3 p-3 bg-slate-50 dark:bg-slate-800/40 border border-slate-100 dark:border-slate-800 rounded-xl cursor-pointer hover:bg-slate-100/50 dark:hover:bg-slate-800/80 transition">
+              <input 
+                type="checkbox" 
+                checked={statins} 
+                onChange={(e) => setStatins(e.target.checked)} 
+                className="h-4 w-4 rounded border-slate-300 text-medical-600 focus:ring-medical-500 cursor-pointer" 
+              />
+              <div>
+                <span className="block text-slate-800 dark:text-slate-200">Prescribe Statin Therapy (Lipid lowering)</span>
+                <span className="block text-[10px] text-slate-400 font-medium font-semibold text-emerald-600">Reduces relative risk by -25%</span>
+              </div>
+            </label>
+
+            <label className="flex items-center gap-3 p-3 bg-slate-50 dark:bg-slate-800/40 border border-slate-100 dark:border-slate-800 rounded-xl cursor-pointer hover:bg-slate-100/50 dark:hover:bg-slate-800/80 transition">
+              <input 
+                type="checkbox" 
+                checked={betaBlockers} 
+                onChange={(e) => setBetaBlockers(e.target.checked)} 
+                className="h-4 w-4 rounded border-slate-300 text-medical-600 focus:ring-medical-500 cursor-pointer" 
+              />
+              <div>
+                <span className="block text-slate-800 dark:text-slate-200">Prescribe Beta-Blockers (BP & Heart Rate control)</span>
+                <span className="block text-[10px] text-slate-400 font-medium font-semibold text-emerald-600">Reduces relative risk by -18%</span>
+              </div>
+            </label>
+
+            <label className="flex items-center gap-3 p-3 bg-slate-50 dark:bg-slate-800/40 border border-slate-100 dark:border-slate-800 rounded-xl cursor-pointer hover:bg-slate-100/50 dark:hover:bg-slate-800/80 transition">
+              <input 
+                type="checkbox" 
+                checked={aceInhibitors} 
+                onChange={(e) => setAceInhibitors(e.target.checked)} 
+                className="h-4 w-4 rounded border-slate-300 text-medical-600 focus:ring-medical-500 cursor-pointer" 
+              />
+              <div>
+                <span className="block text-slate-800 dark:text-slate-200">Prescribe ACE Inhibitors (Blood pressure control)</span>
+                <span className="block text-[10px] text-slate-400 font-medium font-semibold text-emerald-600">Reduces relative risk by -15%</span>
+              </div>
+            </label>
+          </div>
+
+          {/* Results Comparison bar */}
+          <div className="p-6 bg-slate-50 dark:bg-slate-850 border border-slate-100 dark:border-slate-800 rounded-2xl flex flex-col justify-between space-y-6">
+            <div className="space-y-4">
+              <h4 className="text-[11px] font-extrabold text-slate-450 uppercase tracking-wider">Projected Risk Mitigation</h4>
+              
+              <div className="space-y-1">
+                <div className="flex justify-between text-xs font-bold text-slate-605">
+                  <span>Baseline Screening Risk:</span>
+                  <span className="text-rose-500 font-bold">{baselineRisk}%</span>
+                </div>
+                <div className="w-full bg-slate-200 dark:bg-slate-800 h-3 rounded-full overflow-hidden">
+                  <div className="bg-rose-500 h-full transition-all duration-500" style={{ width: `${baselineRisk}%` }}></div>
+                </div>
+              </div>
+
+              <div className="space-y-1">
+                <div className="flex justify-between text-xs font-bold text-slate-605">
+                  <span>Projected Post-Treatment Risk:</span>
+                  <span className={`transition-colors duration-500 font-bold ${projectedRisk < 35 ? 'text-emerald-500' : projectedRisk < 65 ? 'text-amber-500' : 'text-rose-500'}`}>{projectedRisk}%</span>
+                </div>
+                <div className="w-full bg-slate-200 dark:bg-slate-800 h-3 rounded-full overflow-hidden">
+                  <div className={`h-full transition-all duration-500 ${projectedRisk < 35 ? 'bg-emerald-500' : projectedRisk < 65 ? 'bg-amber-500' : 'bg-rose-500'}`} style={{ width: `${projectedRisk}%` }}></div>
+                </div>
+              </div>
+            </div>
+
+            <div className="pt-4 border-t border-slate-200 dark:border-slate-800 flex flex-col sm:flex-row justify-between items-center gap-4">
+              <div className="text-center sm:text-left">
+                <span className="block text-[10px] text-slate-450 font-bold uppercase tracking-wider">Total Risk Reduction</span>
+                <span className="text-2xl font-extrabold text-emerald-600 dark:text-emerald-450">-{totalReduction}%</span>
+              </div>
+              <button
+                type="button"
+                onClick={saveTreatmentPlan}
+                disabled={savingPlan || (!lifestyle && !statins && !betaBlockers && !aceInhibitors)}
+                className="w-full sm:w-auto px-5 py-2.5 bg-slate-800 hover:bg-slate-900 dark:bg-slate-700 dark:hover:bg-slate-655 text-white font-extrabold text-xs rounded-xl shadow transition disabled:opacity-50 cursor-pointer text-center"
+              >
+                {savingPlan ? 'Applying Plan...' : 'Apply & Log Treatment Plan'}
+              </button>
+            </div>
+          </div>
+        </div>
       </div>
 
     </div>

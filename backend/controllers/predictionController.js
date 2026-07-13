@@ -718,3 +718,52 @@ exports.downloadIntakeTemplate = async (req, res) => {
     res.status(500).json({ error: 'Server error while generating clinical checklist' });
   }
 };
+
+exports.updatePrediction = async (req, res) => {
+  const { id } = req.params;
+  const { recommendations, treatmentPlan } = req.body;
+  const userId = req.user.id;
+  const role = req.user.role;
+
+  try {
+    const predictions = await db.query('SELECT * FROM predictions WHERE id = ?', [id]);
+    if (predictions.length === 0) {
+      return res.status(404).json({ error: 'Prediction record not found' });
+    }
+
+    const prediction = predictions[0];
+    
+    if (role !== 'admin' && prediction.user_id !== userId) {
+      return res.status(403).json({ error: 'Access denied: You cannot update this record' });
+    }
+
+    let updatedRecommendations = recommendations || prediction.recommendations;
+    if (treatmentPlan) {
+      updatedRecommendations += `\n\n### **Prescribed Treatment Plan**\n` +
+        `- **Lifestyle Mod (Diet & Exercise)**: ${treatmentPlan.lifestyle ? 'Prescribed' : 'Not Prescribed'}\n` +
+        `- **Statin Therapy**: ${treatmentPlan.statins ? 'Prescribed' : 'Not Prescribed'}\n` +
+        `- **Beta-Blockers**: ${treatmentPlan.betaBlockers ? 'Prescribed' : 'Not Prescribed'}\n` +
+        `- **ACE Inhibitors**: ${treatmentPlan.aceInhibitors ? 'Prescribed' : 'Not Prescribed'}\n` +
+        `- **Projected Post-Treatment Risk**: ${treatmentPlan.projectedRisk}% (originally ${prediction.confidence}%)`;
+    }
+
+    await db.query(
+      'UPDATE predictions SET recommendations = ? WHERE id = ?',
+      [updatedRecommendations, id]
+    );
+
+    await logAction(userId, 'PREDICTION_UPDATE', { 
+      prediction_id: id, 
+      patient_name: prediction.patient_name,
+      treatment_plan: treatmentPlan 
+    });
+
+    res.json({ 
+      message: 'Treatment plan saved and audit trail logged successfully',
+      recommendations: updatedRecommendations
+    });
+  } catch (err) {
+    console.error('Error updating prediction treatment plan:', err.message);
+    res.status(500).json({ error: 'Server error while saving treatment plan' });
+  }
+};
