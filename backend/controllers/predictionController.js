@@ -561,7 +561,7 @@ exports.generatePDFReport = async (req, res) => {
     
     doc.moveDown(1.5);
     doc.fillColor(primaryColor).font('Helvetica-Bold').fontSize(8.5).text('Hospital Contact Support:', 50);
-    doc.font('Helvetica').fillColor(textColor).text('Cardiac Wellness Dept | Phone: +1-800-555-0199 | Email: cardiac-support@hospital.org', 50);
+    doc.font('Helvetica').fillColor(textColor).text('Cardiac Wellness Dept | Phone: +91 6360475219 | Email: cardiac-support@hospital.org', 50);
     
     doc.end();
   } catch (err) {

@@ -152,9 +152,6 @@ const Settings = () => {
                 <FaInfoCircle className="h-3.5 w-3.5" />
                 <span>Cardiocare Core v1.2.0</span>
               </div>
-              <p>
-                Classifier model is connected directly to your Vercel deployment backend server. Ensure Flask API remains active for ML processing.
-              </p>
             </div>
           </div>
         </div>
