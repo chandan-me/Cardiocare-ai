@@ -162,12 +162,20 @@ const PredictionResult = () => {
         icon = FaExclamationTriangle;
         colorClass = 'bg-red-50 text-red-600 dark:bg-red-950/30 dark:text-red-400 border-red-200 dark:border-red-900/50';
       }
-      
       // Split content into clean list items
       const items = rawContent
         .split('\n')
-        .map(line => line.trim().replace(/^\s*-\s*|\*\*/g, '').trim())
-        .filter(line => line.length > 0);
+        .map(line => {
+          let cleaned = line.trim().replace(/\*\*/g, '');
+          // Recursively strip leading lists, bullet points, asterisks, and digit numberings
+          while (true) {
+            const next = cleaned.replace(/^\s*([-*•]|\d+\.)\s*/, '');
+            if (next === cleaned) break;
+            cleaned = next;
+          }
+          return cleaned.trim();
+        })
+        .filter(line => line.length > 0 && line !== '*' && line !== '-' && line !== '•');
         
       sections.push({ title, icon, colorClass, items });
     });
