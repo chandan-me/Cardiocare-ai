@@ -196,6 +196,26 @@ const Assistant = () => {
             <div ref={messagesEndRef} />
           </div>
 
+          {/* Mobile Quick Prompts */}
+          <div className="md:hidden px-3 pt-2 pb-0.5 flex flex-col gap-1 bg-slate-50/50 dark:bg-slate-900 border-t border-slate-100 dark:border-slate-800/60">
+            <span className="text-[9px] text-slate-400 font-bold uppercase tracking-wider flex items-center gap-1">
+              <FaRegLightbulb className="text-amber-500" />
+              Quick Suggestions
+            </span>
+            <div className="flex overflow-x-auto gap-2 pb-1 whitespace-nowrap scrollbar-none">
+              {quickPrompts.map((prompt, index) => (
+                <button
+                  key={index}
+                  type="button"
+                  onClick={() => handleSendMessage(prompt)}
+                  className="px-3 py-1.5 rounded-lg border border-slate-200 bg-white text-[10px] text-slate-700 hover:border-medical-500 hover:bg-medical-50/20 dark:border-slate-800 dark:bg-slate-850 dark:text-slate-350 dark:hover:border-medical-900 dark:hover:bg-medical-950/20 transition cursor-pointer font-semibold shrink-0"
+                >
+                  {prompt}
+                </button>
+              ))}
+            </div>
+          </div>
+
           {/* Form Input */}
           <form 
             onSubmit={(e) => {

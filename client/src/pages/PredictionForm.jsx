@@ -380,26 +380,26 @@ const PredictionForm = () => {
       </div>
 
       {/* Tabs Menu */}
-      <div className="flex border-b border-slate-200 dark:border-slate-700">
+      <div className="flex border-b border-slate-200 dark:border-slate-700 overflow-x-auto whitespace-nowrap scrollbar-none">
         {tabs.map((tab) => (
           <button
             key={tab.id}
             type="button"
             onClick={() => setActiveTab(tab.id)}
-            className={`flex items-center gap-2 px-6 py-3 border-b-2 font-semibold text-sm transition-colors cursor-pointer ${
+            className={`flex items-center gap-2 px-4 sm:px-6 py-3 border-b-2 font-semibold text-xs sm:text-sm transition-colors cursor-pointer shrink-0 ${
               activeTab === tab.id
                 ? 'border-medical-500 text-medical-600 dark:text-sky-400'
                 : 'border-transparent text-slate-500 hover:text-slate-850 dark:hover:text-slate-350'
             }`}
           >
-            <tab.icon className="h-4 w-4" />
+            <tab.icon className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
             {tab.label}
           </button>
         ))}
       </div>
 
       {/* Form Container */}
-      <form onSubmit={handleSubmit(onSubmit)} className="glass-card rounded-2xl p-8 border border-slate-150 dark:border-slate-800 space-y-6">
+      <form onSubmit={handleSubmit(onSubmit)} className="glass-card rounded-2xl p-5 sm:p-8 border border-slate-150 dark:border-slate-800 space-y-6">
         
         {/* TAB 1: Demographics */}
         {activeTab === 'demographics' && (

@@ -19,6 +19,11 @@ import {
 const PredictionResult = () => {
   const location = useLocation();
   const [downloading, setDownloading] = useState(false);
+  const [lifestyle, setLifestyle] = useState(false);
+  const [statins, setStatins] = useState(false);
+  const [betaBlockers, setBetaBlockers] = useState(false);
+  const [aceInhibitors, setAceInhibitors] = useState(false);
+  const [savingPlan, setSavingPlan] = useState(false);
   
   const stateData = location.state;
   if (!stateData || !stateData.result) {
@@ -40,12 +45,6 @@ const PredictionResult = () => {
 
   const { result, inputData } = stateData;
   const isHighRisk = result.result === 'High Risk';
-
-  const [lifestyle, setLifestyle] = useState(false);
-  const [statins, setStatins] = useState(false);
-  const [betaBlockers, setBetaBlockers] = useState(false);
-  const [aceInhibitors, setAceInhibitors] = useState(false);
-  const [savingPlan, setSavingPlan] = useState(false);
 
   const baselineRisk = parseFloat(result.confidence || 0);
   let reductionFactor = 1.0;

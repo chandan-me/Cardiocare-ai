@@ -344,28 +344,28 @@ const Toolkit = () => {
       </div>
 
       {/* Tabs Menu */}
-      <div className="flex border-b border-slate-200 dark:border-slate-800 text-[11px] font-bold">
+      <div className="flex border-b border-slate-200 dark:border-slate-800 text-[11px] font-bold overflow-x-auto whitespace-nowrap scrollbar-none">
         <button
           onClick={() => setActiveTab('ranges')}
-          className={`pb-3 px-4 transition-all border-b-2 cursor-pointer ${activeTab === 'ranges' ? 'border-medical-500 text-medical-600 dark:text-medical-400' : 'border-transparent text-slate-450 hover:text-slate-655'}`}
+          className={`pb-3 px-4 transition-all border-b-2 cursor-pointer shrink-0 ${activeTab === 'ranges' ? 'border-medical-500 text-medical-600 dark:text-medical-400' : 'border-transparent text-slate-450 hover:text-slate-655'}`}
         >
           Reference Vitals Ranges
         </button>
         <button
           onClick={() => setActiveTab('guidelines')}
-          className={`pb-3 px-4 transition-all border-b-2 cursor-pointer ${activeTab === 'guidelines' ? 'border-medical-500 text-medical-600 dark:text-medical-400' : 'border-transparent text-slate-450 hover:text-slate-655'}`}
+          className={`pb-3 px-4 transition-all border-b-2 cursor-pointer shrink-0 ${activeTab === 'guidelines' ? 'border-medical-500 text-medical-600 dark:text-medical-400' : 'border-transparent text-slate-450 hover:text-slate-655'}`}
         >
           Clinical Guidelines
         </button>
         <button
           onClick={() => setActiveTab('calculators')}
-          className={`pb-3 px-4 transition-all border-b-2 cursor-pointer ${activeTab === 'calculators' ? 'border-medical-500 text-medical-600 dark:text-medical-400' : 'border-transparent text-slate-450 hover:text-slate-655'}`}
+          className={`pb-3 px-4 transition-all border-b-2 cursor-pointer shrink-0 ${activeTab === 'calculators' ? 'border-medical-500 text-medical-600 dark:text-medical-400' : 'border-transparent text-slate-450 hover:text-slate-655'}`}
         >
           Utility Calculators
         </button>
         <button
           onClick={() => setActiveTab('ecg')}
-          className={`pb-3 px-4 transition-all border-b-2 cursor-pointer ${activeTab === 'ecg' ? 'border-medical-500 text-medical-600 dark:text-medical-400' : 'border-transparent text-slate-450 hover:text-slate-655'}`}
+          className={`pb-3 px-4 transition-all border-b-2 cursor-pointer shrink-0 ${activeTab === 'ecg' ? 'border-medical-500 text-medical-600 dark:text-medical-400' : 'border-transparent text-slate-450 hover:text-slate-655'}`}
         >
           ECG Rhythm Simulator
         </button>
@@ -727,7 +727,7 @@ const Toolkit = () => {
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-3 gap-2">
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
                     <div className="col-span-1">
                       <span className="block mb-0.5 text-slate-450 font-bold">HDL Chol: {fhdl}</span>
                       <input
@@ -755,7 +755,7 @@ const Toolkit = () => {
                       <select
                         value={fsex}
                         onChange={(e) => setFsex(e.target.value)}
-                        className="w-full p-1 rounded-lg border border-slate-200 dark:border-slate-750 dark:bg-slate-800 text-[9px]"
+                        className="w-full p-1.5 rounded-lg border border-slate-200 dark:border-slate-750 dark:bg-slate-800 text-[10px]"
                       >
                         <option value="male">Male</option>
                         <option value="female">Female</option>

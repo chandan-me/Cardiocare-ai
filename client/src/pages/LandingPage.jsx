@@ -52,42 +52,42 @@ const LandingPage = () => {
     <div className="min-h-screen flex flex-col bg-slate-50 dark:bg-slate-900 transition-colors duration-300">
       
       {/* Navbar */}
-      <nav className="h-20 flex items-center justify-between px-6 md:px-12 border-b border-slate-200/60 dark:border-slate-800 bg-white/70 dark:bg-slate-950/70 backdrop-blur-md sticky top-0 z-50">
-        <div className="flex items-center gap-3">
-          <FaHeartbeat className="h-9 w-9 text-rose-500 animate-pulse-heart" />
-          <span className="font-display font-extrabold text-xl tracking-tight bg-gradient-to-r from-rose-500 to-sky-600 bg-clip-text text-transparent">
+      <nav className="h-16 sm:h-20 flex items-center justify-between px-4 sm:px-6 md:px-12 border-b border-slate-200/60 dark:border-slate-800 bg-white/70 dark:bg-slate-950/70 backdrop-blur-md sticky top-0 z-50">
+        <div className="flex items-center gap-2 sm:gap-3">
+          <FaHeartbeat className="h-7 w-7 sm:h-9 sm:w-9 text-rose-500 animate-pulse-heart" />
+          <span className="font-display font-extrabold text-base sm:text-xl tracking-tight bg-gradient-to-r from-rose-500 to-sky-600 bg-clip-text text-transparent">
             Cardiocare-ai
-            </span>
+          </span>
         </div>
 
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-2.5 sm:gap-4">
           {/* Dark Mode Toggle */}
           <button
             onClick={toggleDarkMode}
-            className="p-2 rounded-lg text-slate-500 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-800 transition cursor-pointer"
+            className="p-1.5 sm:p-2 rounded-lg text-slate-500 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-800 transition cursor-pointer"
             title="Toggle theme"
           >
-            {darkMode ? <FaSun className="h-5 w-5 text-amber-500" /> : <FaMoon className="h-5 w-5" />}
+            {darkMode ? <FaSun className="h-4.5 w-4.5 sm:h-5 sm:w-5 text-amber-500" /> : <FaMoon className="h-4.5 w-4.5 sm:h-5 sm:w-5" />}
           </button>
 
           {user ? (
             <Link
               to="/dashboard"
-              className="flex items-center gap-2 px-5 py-2.5 rounded-full bg-gradient-to-r from-medical-600 to-sky-500 text-white font-semibold shadow-lg shadow-medical-500/20 hover:scale-105 transition"
+              className="flex items-center gap-1.5 sm:gap-2 px-3.5 py-2 sm:px-5 sm:py-2.5 rounded-full bg-gradient-to-r from-medical-600 to-sky-500 text-white text-xs sm:text-sm font-semibold shadow-lg shadow-medical-500/20 hover:scale-105 transition"
             >
-              Go to Dashboard
-              <FaArrowRight className="h-4 w-4" />
+              <span className="hidden sm:inline">Go to </span>Dashboard
+              <FaArrowRight className="h-3 w-3 sm:h-4 sm:w-4" />
             </Link>
           ) : (
             <>
-              <Link to="/login" className="font-semibold text-slate-600 hover:text-medical-600 dark:text-slate-300 dark:hover:text-sky-400">
+              <Link to="/login" className="text-xs sm:text-sm font-semibold text-slate-600 hover:text-medical-600 dark:text-slate-300 dark:hover:text-sky-400">
                 Sign In
               </Link>
               <Link
                 to="/register"
-                className="px-5 py-2.5 rounded-full bg-gradient-to-r from-medical-600 to-sky-500 text-white font-semibold shadow-lg hover:scale-105 transition"
+                className="px-3.5 py-2 sm:px-5 sm:py-2.5 rounded-full bg-gradient-to-r from-medical-600 to-sky-500 text-white text-xs sm:text-sm font-semibold shadow-lg hover:scale-105 transition"
               >
-                Register Free
+                Register
               </Link>
             </>
           )}
