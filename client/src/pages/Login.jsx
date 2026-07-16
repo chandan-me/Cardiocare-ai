@@ -15,8 +15,8 @@ const Login = () => {
 
   const { register, handleSubmit, formState: { errors } } = useForm({
     defaultValues: {
-      email: '',
-      password: '',
+      email: 'admin@pulse.org',
+      password: 'admin123',
       rememberMe: false
     }
   });
@@ -64,11 +64,20 @@ const Login = () => {
           <Link to="/" className="inline-flex items-center gap-2 mb-4">
             <FaHeartbeat className="h-10 w-10 text-rose-500 animate-pulse-heart" />
             <span className="font-display font-extrabold text-2xl bg-gradient-to-r from-rose-500 to-sky-600 bg-clip-text text-transparent">
-              Pulse AI
+              Cardiocare-ai
             </span>
           </Link>
           <h1 className="font-display text-2xl font-bold text-slate-800 dark:text-slate-100">Welcome Back</h1>
           <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">Sign in to your clinical diagnostics account</p>
+          
+          {/* Demo Credentials Info Box */}
+          <div className="mt-4 p-3 rounded-xl bg-sky-50/50 border border-sky-100/50 dark:bg-sky-950/20 dark:border-sky-900/30 text-[11px] text-slate-655 dark:text-slate-350 leading-relaxed font-semibold">
+            <span className="text-sky-600 dark:text-sky-400 font-bold">💡 Demo Login (Pre-filled):</span>
+            <div className="flex justify-between mt-1 text-[10px] font-mono bg-white/60 dark:bg-slate-900/60 px-2.5 py-1.5 rounded-lg border border-slate-100 dark:border-slate-800">
+              <div>Email: <span className="text-slate-900 dark:text-slate-100 font-bold select-all">admin@pulse.org</span></div>
+              <div>Password: <span className="text-slate-900 dark:text-slate-100 font-bold select-all">admin123</span></div>
+            </div>
+          </div>
         </div>
 
         {apiError && (
