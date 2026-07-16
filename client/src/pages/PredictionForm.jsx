@@ -321,7 +321,7 @@ const PredictionForm = () => {
                 placeholder="e.g. Patient John presents with atypical angina. He is 54 years old. Resting BP is 135, serum cholesterol is 210. Maximum heart rate is 140. ECG shows left ventricular hypertrophy..."
                 value={rawNotes}
                 onChange={(e) => setRawNotes(e.target.value)}
-                className="flex-1 min-h-[70px] p-3 text-xs rounded-xl border border-slate-200 bg-white dark:border-slate-750 dark:bg-slate-900 text-slate-800 dark:text-slate-150 focus:outline-none focus:ring-1 focus:ring-medical-500 resize-y"
+                className="flex-1 min-h-[70px] p-3 text-xs rounded-xl border border-slate-200 bg-white dark:border-slate-750 dark:bg-slate-900 text-slate-800 dark:text-slate-150 placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none focus:ring-1 focus:ring-medical-500 resize-y"
               />
               <button
                 type="button"

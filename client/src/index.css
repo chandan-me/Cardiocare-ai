@@ -21,6 +21,24 @@
   --color-risk-500: #ef4444;
   --color-risk-600: #dc2626;
   --color-risk-700: #b91c1c;
+
+  /* Custom Intermediate Slate Scales to resolve invalid Tailwind classes */
+  --color-slate-150: #ebf0f5;
+  --color-slate-155: #e6ecf2;
+  --color-slate-205: #dae2ec;
+  --color-slate-250: #d3dce9;
+  --color-slate-350: #bac7d7;
+  --color-slate-355: #b2c0d2;
+  --color-slate-450: #7c8ba1;
+  --color-slate-455: #74839a;
+  --color-slate-550: #56647a;
+  --color-slate-605: #3f4c5e;
+  --color-slate-650: #3d4b5f;
+  --color-slate-655: #374457;
+  --color-slate-750: #293548;
+  --color-slate-770: #232d3e;
+  --color-slate-805: #1b2536;
+  --color-slate-850: #151f30;
 }
 
 /* Glassmorphism Utilities */

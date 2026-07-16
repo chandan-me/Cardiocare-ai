@@ -230,7 +230,7 @@ const Assistant = () => {
               value={input}
               onChange={(e) => setInput(e.target.value)}
               disabled={loading}
-              className="flex-1 px-4 py-2 text-xs rounded-xl border border-slate-200 bg-white dark:border-slate-750 dark:bg-slate-950 text-slate-800 dark:text-slate-150 focus:outline-none focus:ring-1 focus:ring-medical-500"
+              className="flex-1 px-4 py-2 text-xs rounded-xl border border-slate-200 bg-white dark:border-slate-750 dark:bg-slate-950 text-slate-800 dark:text-slate-150 placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none focus:ring-1 focus:ring-medical-500"
             />
             <button
               type="submit"
