@@ -293,7 +293,7 @@ const LandingPage = () => {
         <div className="max-w-6xl mx-auto flex flex-col md:flex-row justify-between items-center gap-6">
           <div className="flex items-center gap-3">
             <FaHeartbeat className="h-8 w-8 text-rose-500" />
-            <span className="font-display font-extrabold text-white text-md">Antigravity Pulse Inc.</span>
+            <span className="font-display font-extrabold text-white text-md">Cardiocare-ai Inc.</span>
           </div>
 
           <div className="flex gap-6 text-slate-400">
